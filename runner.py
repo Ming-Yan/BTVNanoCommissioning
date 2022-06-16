@@ -361,8 +361,9 @@ if __name__ == "__main__":
                             max_workers=1,
                             provider=CondorProvider(
                                 nodes_per_block=1,
-                                init_blocks=args.workers,
-                                max_blocks=(args.workers) + 1,
+                                cores_per_slot=args.workers,
+                                init_blocks=args.scaleout,
+                                max_blocks=(args.scaleout) + 2,
                                 worker_init="\n".join(env_extra + condor_extra),
                                 walltime="00:20:00",
                             ),
