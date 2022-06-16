@@ -158,8 +158,8 @@ class NanoProcessor(processor.ProcessorABC):
             req_lumi = lumiMasks[self._year](events.run, events.luminosityBlock)
         weights = Weights(len(events), storeIndividual=True)
         if not hasattr(events, "btagDeepFlavCvL"):
-            events.Jet["btagDeepFlavCvL"] = np.minimum(
-                np.maximum(
+            events.Jet["btagDeepFlavCvL"] = np.maximum(
+                np.minimum(
                     np.where(
                         (
                             (
@@ -172,12 +172,12 @@ class NanoProcessor(processor.ProcessorABC):
                         (events.Jet.btagDeepFlavC / (1.0 - events.Jet.btagDeepFlavB)),
                         -1,
                     ),
-                    1,
+                    0.999999,
                 ),
                 -1,
             )
-            events.Jet["btagDeepFlavCvB"] = np.minimum(
-                np.maximum(
+            events.Jet["btagDeepFlavCvB"] = np.maximum(
+                np.minimum(
                     np.where(
                         (
                             (
@@ -193,23 +193,23 @@ class NanoProcessor(processor.ProcessorABC):
                         ),
                         -1,
                     ),
-                    1,
+                    0.999999,
                 ),
                 -1,
             )
-            events.Jet["btagDeepCvL"] = np.minimum(
-                np.maximum(
+            events.Jet["btagDeepCvL"] = np.maximum(
+                np.minimum(
                     np.where(
                         (events.Jet.btagDeepC > 0) & (events.Jet.pt > 15),
                         (events.Jet.btagDeepC / (1.0 - events.Jet.btagDeepB)),
                         -1,
                     ),
-                    1,
+                    0.999999,
                 ),
                 -1,
             )
-            events.Jet["btagDeepCvB"] = np.minimum(
-                np.maximum(
+            events.Jet["btagDeepCvB"] = np.maximum(
+                np.minimum(
                     np.where(
                         (events.Jet.btagDeepC > 0) & (events.Jet.pt > 15),
                         (
@@ -218,7 +218,7 @@ class NanoProcessor(processor.ProcessorABC):
                         ),
                         -1,
                     ),
-                    1,
+                    0.999999,
                 ),
                 -1,
             )
