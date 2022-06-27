@@ -1323,6 +1323,9 @@
     },
     {   "process_name": "gchcWW2L2Nu",
         "cross_section":"0.00396958157"
+    },
+    {   "process_name": "gchcWW2L2Nu_4f",
+        "cross_section":"0.00204444792"
     }
 
 

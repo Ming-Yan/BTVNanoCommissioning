@@ -1,7 +1,6 @@
 def read_xs(file):
     import json
-
-    f = open("../metadata/%s" % file)
+    f = open(file)
     data = json.load(f)
     xs_dict = {}
     for obj in data:
@@ -9,7 +8,7 @@ def read_xs(file):
     return xs_dict
 
 
-def scale_xs(hist, lumi, events, xsfile="../metadata/xsection.json"):
+def scale_xs(hist, lumi, events, xsfile="xsection.json"):
     xs_dict = read_xs(xsfile)
     scales = {}
     for key in events:
