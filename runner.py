@@ -182,6 +182,12 @@ def get_main_parser():
         default=False,
         help="process systematics",
     )
+    parser.add_argument(
+        "--isData",
+        default=False,
+        action="store_true",
+        help="process systematics",
+    )
     return parser
 
 
@@ -256,7 +262,7 @@ if __name__ == "__main__":
     # if args.export_array is not None:
     processor_instance = workflows[args.workflow](
             year=args.year, campaign=args.campaign, export_array=args.export_array
-        ,systematics=args.systematics)
+        ,systematics=args.systematics,isData=args.isData)
     
     # AS: not all workflows will have these two parameter, so probably
     #     we want to avoid always calling it like that in the future
@@ -367,7 +373,7 @@ if __name__ == "__main__":
                             ),
                         )
                     ],
-                    retries=20,
+                    retries=args.retries,
                     retry_handler=retry_handler,
                 )
             else:

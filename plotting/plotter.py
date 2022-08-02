@@ -264,7 +264,8 @@ for var in plot_map["var_map"].keys():
                     yerr=True,
                     ax=ax,
                 )
-                
+        
+
                 for sample in output.keys():
                     if 'data' not in sample: hmc=output[sample][var][{'lepflav':chs,'region':region,'flav':sum}].project(output[sample][var].axes[-1]) +hmc 
                 if not args.disable_ratio:
