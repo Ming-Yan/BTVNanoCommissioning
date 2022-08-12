@@ -1,3 +1,6 @@
+import copy
+import hist 
+from coffea import processor
 def read_xs(file):
     import json
 
@@ -31,8 +34,10 @@ def scale_xs_arr(events, lumi, xsfile="xsection.json"):
 
         wei_array[key] = scales[key]
     return wei_array
-def scaleSumW(accumulator, sumw, lumi, xsfile="xsection.json"):
+def scaleSumW(accumulator, lumi, sumw, dyscale=1.,xsfile="xsection.json"):
     scaled = {}
+
+
     xs_dict = read_xs(xsfile)
     for sample, accu in accumulator.items():
         scaled[sample] = {}
@@ -40,18 +45,30 @@ def scaleSumW(accumulator, sumw, lumi, xsfile="xsection.json"):
             if isinstance(h_obj, hist.Hist):
                 h = copy.deepcopy(h_obj)
                 if sample in xs_dict.keys():
-                    h = h * xs_dict[sample] *lumi /sumw[sample] 
+                    
+                    if 'JetsToLL' in sample  and 'DY' in sample :h = h * xs_dict[sample] *lumi*dyscale/sumw[sample][sample]
+                    else:h = h * xs_dict[sample] *lumi/sumw[sample][sample]
                 else:
-                    if not (("data" in sample) or ("Run" in key)):
-                        warnings.warn(f"Sample ``{sample}`` cross-section not found. (MC won't be included).")
+                    if not (("data" in sample) or ("Run" in sample)):
+                        continue
+                    else: h = h
                 scaled[sample][key] = h
     return scaled
 
 
-def collate(accumulator, mergemap):
+def collate(output, mergemap):
     out = {}
-    for group, names in mergemap.items():
-        out[group] = processor.accumulate([v for k, v in accumulator.items() if k in names])
+    if len(output.keys())>1:
+        merged = {}
+        for files in output.keys():
+            
+            for m in output[files].keys():
+                merged[m]=dict(output[files][m].items())
+        for group, names in mergemap.items():
+            out[group] = processor.accumulate([v for k, v in merged.items() if k in names])
+    else :
+        for group, names in mergemap.items():
+            out[group] = processor.accumulate([v for k, v in output.items() if k in names])
     return out
 def getSumW(accumulator):
     sumw = {}
