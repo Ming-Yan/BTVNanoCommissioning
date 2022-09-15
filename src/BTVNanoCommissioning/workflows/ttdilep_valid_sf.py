@@ -4,10 +4,10 @@ import collections
 from matplotlib.pyplot import jet
 
 import coffea
-from coffea import hist, processor
+from coffea import  processor
 import awkward as ak
 import gc
-
+import os,psutil
 from BTVNanoCommissioning.utils.AK4_parameters import correction_config
 from BTVNanoCommissioning.utils.correction import (
     lumiMasks,
@@ -58,20 +58,20 @@ class NanoProcessor(processor.ProcessorABC):
         return self._accumulator
 
     def process(self, events):
+        
         output = self.make_output()
         dataset = events.metadata["dataset"]
         isRealData = not hasattr(events, "genWeight")
-
         if isRealData:
-            output["sumw"][dataset] = len(events)
+            output["sumw"] = len(events)
         else:
             output["sumw"] = ak.sum(events.genWeight)
             if self.isJERC:events.Jet = self._jet_factory[jetfac_name].build(
             add_jec_variables(events.Jet, events.fixedGridRhoFastjetAll), lazy_cache=events.caches[0]
         )
         req_lumi = np.ones(len(events), dtype="bool")
-        if isRealData:
-            req_lumi = lumiMasks[self._year](events.run, events.luminosityBlock)
+        # if isRealData:
+        #     req_lumi = lumiMasks[self._year](events.run, events.luminosityBlock)
         weights = Weights(len(events), storeIndividual=True)
         if not isRealData:
             weights.add("genweight", events.genWeight)
@@ -185,12 +185,12 @@ class NanoProcessor(processor.ProcessorABC):
         event_jet = events.Jet[
             (events.Jet.pt > 25)
             & (abs(events.Jet.eta) <= 2.4)
-            & (events.Jet.puId > 0)
+            #& (events.Jet.puId > 0) # commented out due to run3 condition
             & (events.Jet.jetId > 5)
             & (ak.all(events.Jet.metric_table(events.Muon) > 0.4, axis=2))
             & (ak.all(events.Jet.metric_table(events.Electron) > 0.4, axis=2))
         ]
-        req_jets = ak.num(event_jet.puId) >= 2
+        req_jets = ak.num(event_jet.pt) >= 2
         event_level = (
             req_trig & req_lumi & req_muon & req_ele & req_jets & req_opposite_charge
         )
@@ -198,7 +198,8 @@ class NanoProcessor(processor.ProcessorABC):
             event_level = ak.fill_none(event_level, False)
         # Selected
         selev = events[event_level]
-
+    
+        # print(req_trig)
         #########
 
         # Per muon
@@ -222,7 +223,8 @@ class NanoProcessor(processor.ProcessorABC):
         # Per jet : https://twiki.cern.ch/twiki/bin/viewauth/CMS/PileupJetID
         jet_eta = abs(selev.Jet.eta) <= 2.4
         jet_pt = selev.Jet.pt > 25
-        jet_pu = (selev.Jet.puId > 0) & (selev.Jet.jetId > 5)
+        #jet_pu = (selev.Jet.puId > 0) & (selev.Jet.jetId > 5) # commented out for run3
+        jet_pu = (selev.Jet.jetId > 5)
         jet_dr = ak.all(selev.Jet.metric_table(smu) > 0.4, axis=2) & ak.all(
             selev.Jet.metric_table(sel) > 0.4, axis=2
         )
@@ -408,7 +410,8 @@ class NanoProcessor(processor.ProcessorABC):
         
         for i in range(2):output[f"dr_mujet{i}"].fill(flav=flatten(genflavor[:,i]),dr=flatten(smu.delta_r(sjets[:,i])),weight=weights.weight()[event_level])
         output["njet"].fill(ak.count(sjets.pt, axis=1),weight=weights.weight()[event_level])
-        
+        print("end : ",psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2, "MB")
+
 
         return {dataset:output}
 

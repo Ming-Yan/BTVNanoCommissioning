@@ -3,7 +3,7 @@ import pickle, os, sys, mplhep as hep, numpy as np
 import collections
 import re
 import coffea
-from coffea import hist, processor
+from coffea import processor
 import awkward as ak
 from coffea.analysis_tools import Weights
 
@@ -244,7 +244,6 @@ class NanoProcessor(processor.ProcessorABC):
             & (selev.Muon.tightId > 0.5)
             & (selev.Muon.pfRelIso04_all <= 0.15)
         ]
-
         ## Soft Muon
         ssmu = selev.Muon[
             (selev.Muon.pt < 25)
@@ -254,6 +253,7 @@ class NanoProcessor(processor.ProcessorABC):
         ]
         softmu0 = ssmu[:, 0]
         sz = shmu[:, 0] + shmu[:, 1]
+        
         if not isRealData and self.isCorr:
             weights.add(
                 "lep1sf",

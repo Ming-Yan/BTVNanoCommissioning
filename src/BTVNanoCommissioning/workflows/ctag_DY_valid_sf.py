@@ -5,7 +5,7 @@ import collections
 from matplotlib.pyplot import jet
 
 import coffea
-from coffea import hist, processor
+from coffea import processor
 import awkward as ak
 from coffea.analysis_tools import Weights
 from BTVNanoCommissioning.utils.correction import (
@@ -46,6 +46,8 @@ class NanoProcessor(processor.ProcessorABC):
                     )
 
         self._pu = load_pu(self._campaign, correction_config[self._campaign]["PU"])
+        self.isJERC = isJERC
+        self.isCorr = isCorr
         if isJERC:
             self._jet_factory = load_jetfactory(
                 self._campaign, correction_config[self._campaign]["JME"]
@@ -127,7 +129,7 @@ class NanoProcessor(processor.ProcessorABC):
                 -1,
             )
         if isRealData:
-            output["sumw"][dataset] = len(events)
+            output["sumw"] = len(events)
         else:
             output["sumw"] = ak.sum(events.genWeight)
             if self.isJERC:events.Jet = self._jet_factory[jetfac_name].build(
@@ -140,8 +142,7 @@ class NanoProcessor(processor.ProcessorABC):
         if not isRealData:
             weights.add("genweight", events.genWeight)
             if self.isCorr:weights.add(
-                "puweight", self._pu[f"{self._year}_pileupweight"](events.Pileup.nPU)
-            )
+                "puweight", self._pu[f"{self._year}_pileupweight"](events.Pileup.nPU) )
         ##############
         # Trigger level
         mu_triggers = [

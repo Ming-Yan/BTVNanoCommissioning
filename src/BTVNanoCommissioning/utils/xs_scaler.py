@@ -1,19 +1,15 @@
 import copy
 import hist 
 from coffea import processor
-def read_xs(file):
-    import json
+import os
+from BTVNanoCommissioning.helpers.xsection import xsection
 
-    f = open(file)
-    data = json.load(f)
+
+
+def scale_xs(hist, lumi, events):
     xs_dict = {}
-    for obj in data:
+    for obj in xsection:
         xs_dict[obj["process_name"]] = float(obj["cross_section"])
-    return xs_dict
-
-
-def scale_xs(hist, lumi, events, xsfile="xsection.json"):
-    xs_dict = read_xs(xsfile)
     scales = {}
     for key in events:
         if type(key) != str or key == "Data" or "Run" in key:
@@ -23,8 +19,10 @@ def scale_xs(hist, lumi, events, xsfile="xsection.json"):
     return hist
 
 
-def scale_xs_arr(events, lumi, xsfile="xsection.json"):
-    xs_dict = read_xs(xsfile)
+def scale_xs_arr(events, lumi):
+    xs_dict = {}
+    for obj in xsection:
+        xs_dict[obj["process_name"]] = float(obj["cross_section"])
     scales = {}
     wei_array = {}
     for key in events:
@@ -36,39 +34,49 @@ def scale_xs_arr(events, lumi, xsfile="xsection.json"):
     return wei_array
 def scaleSumW(accumulator, lumi, sumw, dyscale=1.,xsfile="xsection.json"):
     scaled = {}
-
-
-    xs_dict = read_xs(xsfile)
+    xs_dict = {}
+    for obj in xsection:
+        xs_dict[obj["process_name"]] = float(obj["cross_section"])
     for sample, accu in accumulator.items():
         scaled[sample] = {}
         for key, h_obj in accu.items():
+            scaled[sample]['sumw']=sumw[sample]
             if isinstance(h_obj, hist.Hist):
                 h = copy.deepcopy(h_obj)
-                if sample in xs_dict.keys():
-                    
-                    if 'JetsToLL' in sample  and 'DY' in sample :h = h * xs_dict[sample] *lumi*dyscale/sumw[sample][sample]
-                    else:h = h * xs_dict[sample] *lumi/sumw[sample][sample]
+                if sample in xs_dict.keys():h = h * xs_dict[sample] *lumi/sumw[sample]
                 else:
                     if not (("data" in sample) or ("Run" in sample)):
                         continue
                     else: h = h
                 scaled[sample][key] = h
+    
     return scaled
-
-
+def additional_scale(accumulator,scale, target):
+    scaled = {}
+    for sample, accu in accumulator.items():
+        scaled[sample] = {}
+        for key, h_obj in accu.items():
+            if isinstance(h_obj, hist.Hist):
+                h = copy.deepcopy(h_obj)
+                if sample in target:h = h * scale
+                
+                else: h = h
+                scaled[sample][key] = h
+    return scaled
 def collate(output, mergemap):
-    out = {}
-    if len(output.keys())>1:
-        merged = {}
-        for files in output.keys():
-            
+    out = {}    
+    merged = {}
+    for files in output.keys():
+        if 'sumw' not in output[files].keys():
             for m in output[files].keys():
                 merged[m]=dict(output[files][m].items())
-        for group, names in mergemap.items():
-            out[group] = processor.accumulate([v for k, v in merged.items() if k in names])
-    else :
-        for group, names in mergemap.items():
-            out[group] = processor.accumulate([v for k, v in output.items() if k in names])
+        else:
+            
+            merged[files]=dict(output[files].items())
+    for group, names in mergemap.items():
+        print(group,names)
+        out[group] = processor.accumulate([v for k, v in merged.items() if k in names])
+    
     return out
 def getSumW(accumulator):
     sumw = {}

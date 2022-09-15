@@ -59,7 +59,7 @@ class NanoProcessor(processor.ProcessorABC):
         isRealData = not hasattr(events, "genWeight")
 
         if isRealData:
-            output["sumw"][dataset] = len(events)
+            output["sumw"] = len(events)
         else:
             output["sumw"] = ak.sum(events.genWeight)
             if self.isJERC:events.Jet = self._jet_factory[jetfac_name].build(

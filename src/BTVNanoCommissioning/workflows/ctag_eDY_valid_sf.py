@@ -4,7 +4,7 @@ import collections
 
 from matplotlib.pyplot import jet
 
-from coffea import hist, processor
+from coffea import processor
 import awkward as ak
 from coffea.analysis_tools import Weights
 from BTVNanoCommissioning.utils.correction import (
