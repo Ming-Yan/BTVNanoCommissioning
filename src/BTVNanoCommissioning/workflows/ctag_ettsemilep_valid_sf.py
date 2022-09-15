@@ -450,6 +450,7 @@ class NanoProcessor(processor.ProcessorABC):
                     discr=smuon_jet.btagDeepB,
                 )
 
+
             disc_list = {
                 "btagDeepB": csvsfs_b,
                 "btagDeepC": csvsfs_b,
@@ -471,6 +472,7 @@ class NanoProcessor(processor.ProcessorABC):
                 h.fill(flatten(ssmu[histname.replace("soft_l_","")]),weight=weights.weight()[event_level])
             elif "MET" in histname:
                 h.fill(flatten(selev.METFixEE2017[histname.replace("MET_","")]),weight=weights.weight()[event_level])
+
             elif "mujet_" in histname:
                 h.fill(smflav,flatten(smuon_jet[histname.replace("mujet_","")]),weight=weights.weight()[event_level])
             elif ["z_mass", "z_pt", "z_eta", "z_phi"] == histname:

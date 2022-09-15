@@ -9,7 +9,9 @@ from hist.intervals import ratio_uncertainty
 plt.style.use(hep.style.ROOT)
 from BTVNanoCommissioning.utils.xs_scaler import getSumW,collate,scaleSumW
 
+
 markers = [".","o", "^", "s", "+", "x", "D", "*"]
+
 parser = argparse.ArgumentParser(description="hist plotter for commissioning")
 parser.add_argument(
     "-p",
@@ -24,8 +26,10 @@ parser.add_argument(
     dest="phase",
     help="which phase space",
 )
+
 # parser.add_argument('--ext', type=str, default='data', help='addional name')
 parser.add_argument("-i", "--input", required=True, type=str, help="files set")
+
 parser.add_argument("-r", "--ref", required=True, help="referance dataset")
 parser.add_argument(
     "-c",
@@ -50,6 +54,7 @@ parser.add_argument(
     ],
     help="discriminators",
 )
+
 parser.add_argument("--ext", type=str, default="data", help="addional name")
 
 args = parser.parse_args()
@@ -80,6 +85,7 @@ if 'Run' in args.ref:hist_type="errorbar"
 else:hist_type="step"
 
 if args.phase == "ttdilep":
+
     input_txt = "dilepton ttbar"
     nj = 2
 elif args.phase == "ttsemilep":
@@ -248,6 +254,7 @@ for discr in args.discr_list:
                     loc=0,
                     ax=ax,
                 )
+
         ax.set_xlabel(None)
         ax.set_xticklabels(ax.get_xticklabels(), fontsize=0)
         allaxis={}
@@ -259,6 +266,7 @@ for discr in args.discr_list:
                     histtype=hist_type,
                     yerr=True,
                     ax=ax,
+
                 )
         for c in args.compared.split(","):
             hep.histplot(
@@ -268,6 +276,7 @@ for discr in args.discr_list:
                     yerr=True,
                     ax=ax,
                 )
+
   
         for c in args.compared.split(",") :
             rax.errorbar(
@@ -296,3 +305,4 @@ for discr in args.discr_list:
         fig.savefig(f"plot/BTV/{args.phase}_{args.ext}_{time}/compare_{args.phase}_lin_inclusive{discr}.pdf")
         fig.savefig(f"plot/BTV/{args.phase}_{args.ext}_{time}/compare_{args.phase}_lin_inclusive{discr}.png")
         
+
