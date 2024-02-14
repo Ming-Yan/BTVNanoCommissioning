@@ -105,10 +105,11 @@ class NanoProcessor(processor.ProcessorABC):
             "sumw": processor.defaultdict_accumulator(float),
             **_hist_event_dict,
         }
-        if isRealData:
-            output["sumw"] = len(events)
-        else:
-            output["sumw"] = ak.sum(events.genWeight)
+        if shift_name is None:
+            if isRealData:
+                output["sumw"] = len(events)
+            else:
+                output["sumw"] = ak.sum(events.genWeight)
         ####################
         #    Selections    #
         ####################
@@ -451,9 +452,11 @@ class NanoProcessor(processor.ProcessorABC):
             output["z_mass"].fill(syst, flatten(sz.mass), weight=weight)
             output["MET_pt"].fill(syst, flatten(smet.pt), weight=weight)
             output["MET_phi"].fill(syst, flatten(smet.phi), weight=weight)
-            output["npvs"].fill(events[event_level].PV.npvs, weight=weight)
+            output["npvs"].fill(syst, events[event_level].PV.npvs, weight=weight)
             if not isRealData:
-                output["pu"].fill(events[event_level].Pileup.nTrueInt, weight=weight)
+                output["pu"].fill(
+                    syst, events[event_level].Pileup.nTrueInt, weight=weight
+                )
         #######################
         #  Create root files  #
         #######################
