@@ -28,8 +28,11 @@ def histogrammer(events, workflow):
     ptratio_axis = Hist.axis.Regular(50, 0, 1, name="ratio", label="ratio")
     n_axis = Hist.axis.Integer(0, 10, name="n", label="N obj")
     osss_axis = Hist.axis.IntCategory([1, -1], name="osss", label="OS(+)/SS(-)")
-    _hist_dict["npvs"] = Hist.Hist(npvs_axis, Hist.storage.Weight())
-    _hist_dict["pu"] = Hist.Hist(npvs_axis, Hist.storage.Weight())
+    _hist_dict["puwei"] = Hist.Hist(
+        syst_axis, Hist.axis.Regular(80, 0, 5, name="puwei", label="wei")
+    )
+    _hist_dict["npvs"] = Hist.Hist(syst_axis, npvs_axis, Hist.storage.Weight())
+    _hist_dict["pu"] = Hist.Hist(syst_axis, npvs_axis, Hist.storage.Weight())
     ### Workflow specific
     if "example" == workflow:
         obj_list = [

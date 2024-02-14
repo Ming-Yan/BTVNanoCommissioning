@@ -58,7 +58,7 @@ correction_config = {
     },
     "Summer22EERun3": {
         "lumiMask": "Cert_Collisions2022_355100_362760_Golden.json",
-        "PU": "puwei_2022_postEE.histo.root",  # new PU file, post EE
+        # "PU": "puweight_Summer22EERun3-80p0mb.histo.root",  # new PU file, post EE
         "JME": "jec_compiled.pkl.gz",
         "LSF": {
             "ele_json": "electron.json.gz",
@@ -81,18 +81,31 @@ correction_config = {
     },
     "Summer23": {
         "lumiMask": "Cert_Collisions2023_366442_370790_Golden.json",
-        # "PU": "puweight_Summer22EERun3-80p0mb.histo.root",  # 69.2mb
+        "PU": "puwei_Summer23.histo.root",
         # "JME": "jec_compiled.pkl.gz",
         "jetveto": {
             "Run2023BC jetvetomap": "jetveto2023BC.histo.root"
         },  # this is from Mikko https://indico.cern.ch/event/1315421/contributions/5532963/attachments/2697975/4683826/2023_08_16_jetvetomaps_v3.pdf
+        "JPCalib": {
+            "Run2023B-22Sep2023-v1": "calibeHistoWrite_Data2023B-22Sep2023.root",
+            "Run2023C-22Sep2023-v1": "calibeHistoWrite_Data2023C-22Sep2023_v1.root",
+            "Run2023C-22Sep2023-v2": "calibeHistoWrite_Data2023C-22Sep2023_v2.root",
+            "Run2023C-22Sep2023-v3": "calibeHistoWrite_Data2023C-22Sep2023_v3.root",
+            "Run2023C-22Sep2023-v4": "calibeHistoWrite_Data2023C-22Sep2023_v4.root",
+            "MC": "calibeHistoWrite_MC2023_Summer23.root",
+        },
     },
     "Summer23BPix": {
         "lumiMask": "Cert_Collisions2023_366442_370790_Golden.json",
-        # "PU": "puweight_Summer22EERun3-80p0mb.histo.root",  # 69.2mb
+        "PU": "puwei_Summer23BPix.histo.root",
         # "JME": "jec_compiled.pkl.gz",
         "jetveto": {
             "Run2023D jetvetomap_bpix": "jetveto2023D.histo.root"
         },  # this is from Mikko https://indico.cern.ch/event/1315421/contributions/5532963/attachments/2697975/4683826/2023_08_16_jetvetomaps_v3.pdf
+        "JPCalib": {
+            "Run2023D-22Sep2023-v1": "calibeHistoWrite_Data2023D-22Sep2023_v1.root",
+            "Run2023D-22Sep2023-v2": "calibeHistoWrite_Data2023D-22Sep2023_v2.root",
+            "MC": "calibeHistoWrite_MC2023_Summer23BPix.root",
+        },
     },
 }
