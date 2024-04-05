@@ -43,6 +43,14 @@ def load_SF(campaign, config, syst=False):
                         ext.add_weight_sets([f"* * {filename}"])
                         ext.finalize()
                         correction_map["PU"] = ext.make_evaluator()["PU"]
+        elif SF == "HLT":
+            ext = extractor()
+            
+            # with importlib.resources.path(_pu_path, config["HLT"]) as filename:
+            for filename in config["HLT"]:
+                ext.add_weight_sets([f"* * src/BTVNanoCommissioning/data/LSF/{campaign}/{filename}"])
+            ext.finalize()
+            correction_map["HLT"] = ext.make_evaluator()
         ## btag weight
         elif SF == "BTV":
             if os.path.exists(
@@ -147,10 +155,11 @@ def load_SF(campaign, config, syst=False):
                             + file
                             for paths, file in zip(inputs, real_paths)
                             if ".root" in str(file)
+                            or ".txt" in str(file)
+                            or ".root" in str(file)
                         )
                 ext.finalize()
                 correction_map["MUO_custom"] = ext.make_evaluator()
-
                 _ele_path = f"BTVNanoCommissioning.data.LSF.{campaign}"
                 ext = extractor()
                 with contextlib.ExitStack() as stack:
@@ -288,6 +297,7 @@ met_filters = {
             "BadPFMuonFilter",
             "BadPFMuonDzFilter",
             "hfNoisyHitsFilter",
+
             "eeBadScFilter",
             "ecalBadCalibFilter",
         ],
@@ -374,15 +384,13 @@ def JME_shifts(shifts, correct_map, events, campaign, isRealData, systematic=Fal
     ## HEM 18 issue
     if isRealData and "2018" in campaign:
         _runid = events.run >= 319077
-        j_mask = ak.where(
-            _runid
-            & (jets.phi > -1.57)
-            & (jets.phi < -0.87)
-            & (jets.eta > -2.5)
-            & (jets.eta < -1.3),
-            0.8,
-            1,
-        )
+        j_mask = _runid\
+            & (jets.phi > -1.57)\
+            & (jets.phi < -0.87)\
+            & (jets.eta > -3.0)\
+            & (jets.eta < -1.3)
+        
+        '''
         j_high_eta_mask = ak.where(
             _runid
             & (jets.phi > -1.57)
@@ -391,15 +399,15 @@ def JME_shifts(shifts, correct_map, events, campaign, isRealData, systematic=Fal
             & (jets.eta < -2.5),
             0.65,
             1,
-        )
-
-        for var in ["mass", "pt"]:
-            jets[var] = j_mask * j_high_eta_mask * jets[var]
+        )'''
+        #jets = jets[~j_mask]
+        #for var in ["mass", "pt"]:
+        #    jets[var] = j_mask * j_high_eta_mask * jets[var]
     shifts += [({"Jet": jets, "MET": met}, None)]
 
     ## systematics
     if not isRealData:
-        if systematic is not None:
+        if systematic is not False:
             if systematic == "split":
                 for jes in met.fields:
                     if "JES" not in jes or "Total" in jes:
@@ -684,6 +692,20 @@ def btagSFs(jet, correct_map, weights, SFtype, syst=False):
     return weights
 
 
+### HLT SFs
+def HLTSFs(ele, mu, correct_map, weights, syst=True):
+    sf = correct_map["HLT"]['base/pt_mu_value'](np.minimum(mu.pt,200))*correct_map["HLT"]['base/pt_e_value'](np.minimum(ele.pt,200))
+    if syst:
+        return weights.add(
+            "HLT",
+            sf,
+            (correct_map["HLT"]['base/pt_mu_value'](np.minimum(mu.pt,200))+correct_map["HLT"]['base/pt_mu_error'](np.minimum(mu.pt,200)))*(correct_map["HLT"]['base/pt_e_value'](np.minimum(ele.pt,200))+correct_map["HLT"]['base/pt_e_error'](np.minimum(ele.pt,200))),
+           (correct_map["HLT"]['base/pt_mu_value'](np.minimum(mu.pt,200))-correct_map["HLT"]['base/pt_mu_error'](np.minimum(mu.pt,200)))*(correct_map["HLT"]['base/pt_e_value'](np.minimum(ele.pt,200))-correct_map["HLT"]['base/pt_e_error'](np.minimum(ele.pt,200))),
+        )
+    else:
+        return weights.add("HLT", sf)
+
+
 ### Lepton SFs
 def eleSFs(ele, correct_map, weights, syst=True, isHLT=False):
     allele = ele if ele.ndim > 1 else ak.singletons(ele)
@@ -899,16 +921,19 @@ def muSFs(mu, correct_map, weights, syst=False, isHLT=False):
         for nmu in range(ak.num(allmu.pt)[0]):
             mu = allmu[:, nmu]
             masknone = ak.is_none(mu.pt)
-            # mu_eta = ak.fill_none(np.where(np.abs(mu.eta) >= 2.4, 2.39, np.abs(mu.eta)),2.39)
-            # mu_pt = ak.fill_none(mu.pt,30)
-            mu_pt = mu.pt
-            mu_eta = np.where(np.abs(mu.eta) >= 2.4, 2.39, np.abs(mu.eta))
-            mask = mu_pt > 30
+            mu_eta = ak.fill_none(
+                np.where(np.abs(mu.eta) >= 2.4, 2.39, np.abs(mu.eta)), 2.39
+            )
+            mu_pt = ak.fill_none(np.where(mu.pt < 20, 20, mu.pt), 20)
+            # mu_pt = mu.pt
+            mu_pt_low = ak.fill_none(np.where(mu.pt >= 20, 20, mu.pt), 15.0)
+            # mu_eta = np.where(np.abs(mu.eta) >= 2.4, 2.39, np.abs(mu.eta))
+            mask = mu_pt > 20
             sfs = 1.0
             if "correctionlib" in str(type(correct_map["MUO"])):
                 if "ID" in sf or "Reco" in sf:
-                    mu_pt = ak.fill_none(np.where(mu.pt < 30, 30, mu.pt), 30)
-                    mu_pt_low = ak.fill_none(np.where(mu.pt >= 30, 30, mu.pt), 30)
+
+                    
                     sfs_low = np.where(
                         ~mask & ~masknone,
                         correct_map["MUO_custom"][
@@ -916,7 +941,7 @@ def muSFs(mu, correct_map, weights, syst=False, isHLT=False):
                         ](mu_eta, mu_pt_low),
                         1.0,
                     )
-
+                    
                     sfs = np.where(
                         mask & ~masknone,
                         correct_map["MUO"][correct_map["MUO_cfg"][sf]].evaluate(
@@ -926,7 +951,6 @@ def muSFs(mu, correct_map, weights, syst=False, isHLT=False):
                     )
                     sfs = np.where(masknone, 1.0, sfs)
                     sfs_forerr = sfs
-
                     if syst:
                         sfs_err_low = np.where(
                             ~mask & ~masknone,
@@ -977,6 +1001,7 @@ def muSFs(mu, correct_map, weights, syst=False, isHLT=False):
                                 sf[sf.find(" ") + 1 :], mu_eta, mu_pt, "systdown"
                             ),
                         )
+                
             else:
                 if "mu" in sf:
                     sfs = np.where(
@@ -1001,10 +1026,15 @@ def muSFs(mu, correct_map, weights, syst=False, isHLT=False):
                         )
 
             sfs_allmu = sfs_allmu * sfs
-            sfs_allmu_down = sfs_allmu_down * sfs_down
-            sfs_allmu_up = sfs_allmu_up * sfs_up
+            if syst:
+                sfs_allmu_down = sfs_allmu_down * sfs_down
+                sfs_allmu_up = sfs_allmu_up * sfs_up
+        import matplotlib.pyplot as plt
+        
+
         if syst:
             weights.add(sf.split(" ")[0], sfs_allmu, sfs_allmu_up, sfs_allmu_down)
+
         else:
             weights.add(sf.split(" ")[0], sfs_allmu)
     return weights
@@ -1012,7 +1042,7 @@ def muSFs(mu, correct_map, weights, syst=False, isHLT=False):
 
 def jmar_sf(jet, correct_map, weights, syst=False):
     alljet = jet if jet.ndim > 1 else ak.singletons(jet)
-    for sf in correct_map["JMAR_cfgb"].keys():
+    for sf in correct_map["JMAR_cfg"].keys():
         sfs_all, sfs_all_up, sfs_all_down = (
             np.ones_like(alljet[:, 0].pt),
             np.ones_like(alljet[:, 0].pt),
@@ -1025,8 +1055,9 @@ def jmar_sf(jet, correct_map, weights, syst=False):
             masknone = ak.is_none(jet.pt)
             # PU Jet ID applied only jet pT<50GeV
             if sf == "PUJetID_eff":
-                jet_pt = np.where(jet.pt > 50, 20, jet.pt)
+                jet_pt = np.where(jet_pt > 50, 20, jet_pt)
                 masknone = (ak.is_none(jet.pt)) & (jet.pt > 50)
+
             if "correctionlib" in str(type(correct_map["JMAR"])):
                 sfs = np.where(
                     masknone,
@@ -1092,7 +1123,12 @@ def add_pdf_weight(weights, pdf_weights):
         # Eq. 28 of same ref
         pdfas_unc = np.sqrt(np.square(pdf_unc) + np.square(as_unc))
         weights.add("PDFaS_weight", nom, pdfas_unc + nom)
-
+        # elif pdf_weights is not None and len(pdf_weights[0])>0:
+        # print(np.shape(ak.to_numpy(pdf_weights)))
+        # arg = pdf_weights[:,1:] - np.ones((len(weights.weight()), 100))
+        # summed = ak.sum(np.square(arg), axis=1)
+        # pdf_unc = np.sqrt((1.0 / 99.0) * summed)
+        # weights.add("PDF_weight", nom, pdf_unc + nom)'''
     else:
         weights.add("aS_weight", nom, up, down)
         weights.add("PDF_weight", nom, up, down)
@@ -1140,51 +1176,36 @@ def add_ps_weight(weights, ps_weights):
     weights.add("UEPS_FSR", nom, up_fsr, down_fsr)
 
 
-def add_scalevar_7pt(weights, lhe_weights):
+
+
+
+def add_scalevar_3pt(weights, lhe_weights,syst=True):
+    """
+    Twiki: https://twiki.cern.ch/twiki/bin/viewauth/CMS/TopSystematics#Factorization_and_renormalizatio
+
+    __doc__:
+    ['LHE scale variation weights (w_var / w_nominal)',
+    ' [0] is renscfact=0.5d0 facscfact=0.5d0 ',
+    ' [1] is renscfact=0.5d0 facscfact=1d0 ',
+    ' [2] is renscfact=0.5d0 facscfact=2d0 ',
+    ' [3] is renscfact=1d0 facscfact=0.5d0 ',
+    ' [4] is renscfact=1d0 facscfact=1d0 ',
+    ' [5] is renscfact=1d0 facscfact=2d0 ',
+    ' [6] is renscfact=2d0 facscfact=0.5d0 ',
+    ' [7] is renscfact=2d0 facscfact=1d0 ',
+    ' [8] is renscfact=2d0 facscfact=2d0 ']
+    """
     nom = np.ones(len(weights.weight()))
-
-    if len(lhe_weights) > 0:
-        if len(lhe_weights[0]) == 9:
-            up = np.maximum.reduce(
-                [
-                    lhe_weights[:, 0],
-                    lhe_weights[:, 1],
-                    lhe_weights[:, 3],
-                    lhe_weights[:, 5],
-                    lhe_weights[:, 7],
-                    lhe_weights[:, 8],
-                ]
-            )
-            down = np.minimum.reduce(
-                [
-                    lhe_weights[:, 0],
-                    lhe_weights[:, 1],
-                    lhe_weights[:, 3],
-                    lhe_weights[:, 5],
-                    lhe_weights[:, 7],
-                    lhe_weights[:, 8],
-                ]
-            )
-        elif len(lhe_weights[0]) > 1:
-            print("Scale variation vector has length ", len(lhe_weights[0]))
-    else:
-        up = np.ones(len(weights.weight()))
-        down = np.ones(len(weights.weight()))
-
-    weights.add("scalevar_7pt", nom, up, down)
-
-
-def add_scalevar_3pt(weights, lhe_weights):
-    nom = np.ones(len(weights.weight()))
-
-    if len(lhe_weights) > 0:
-        if len(lhe_weights[0]) == 9:
-            up = np.maximum(lhe_weights[:, 0], lhe_weights[:, 8])
-            down = np.minimum(lhe_weights[:, 0], lhe_weights[:, 8])
-        elif len(lhe_weights[0]) > 1:
-            print("Scale variation vector has length ", len(lhe_weights[0]))
-    else:
-        up = np.ones(len(weights.weight()))
-        down = np.ones(len(weights.weight()))
-
-    weights.add("scalevar_3pt", nom, up, down)
+    if syst:
+        if len(lhe_weights) > 0:
+            if len(lhe_weights[0]) == 9:
+                nom = lhe_weights[:,4]
+                weights.add("scalevar_muR",nom,lhe_weights[:,1],lhe_weights[:,7])
+                weights.add("scalevar_muF",nom,lhe_weights[:,3],lhe_weights[:,5])
+                weights.add("scalevar_muR_muF",nom,lhe_weights[:,0],lhe_weights[:,8])
+            elif len(lhe_weights[0]) > 1:
+                print("Scale variation vector has length ", len(lhe_weights[0]))
+        else:
+            up = np.ones(len(weights.weight()))
+            down = np.ones(len(weights.weight()))
+    else:weights.add("scalevar_3pt", nom)

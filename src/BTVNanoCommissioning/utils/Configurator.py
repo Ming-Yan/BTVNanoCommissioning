@@ -126,7 +126,7 @@ class Configurator:
             "voms": None,
             "compression": 3,
             "index": None,
-            "sample_size": 20,
+            "sample_size": 50,
             "requirements": "",
         }
         if "run_options" not in self.cfg.keys():

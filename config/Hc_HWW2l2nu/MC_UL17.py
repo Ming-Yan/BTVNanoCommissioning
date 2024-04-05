@@ -1,35 +1,38 @@
 from Hpluscharm.workflows import workflows as hplusc_wf
+import numpy as np
 
 cfg = {
     "dataset": {
         "jsons": [
-            "src/Hpluscharm/input_json/signal_UL17.json",
-            "src/Hpluscharm/input_json/signal_UL17_off.json",
+            # "src/Hpluscharm/input_json/HplusB_FXFX_UL17.json"
+            "src/Hpluscharm/input_json/signal_UL17_off_local.json",
             "src/Hpluscharm/input_json/mcbkg_UL17.json",
             "src/Hpluscharm/input_json/higgs_UL17.json",
-            "src/Hpluscharm/input_json/hzz_other.json",
         ],
         "campaign": "2017_UL",
         "year": "2017",
+        # "filter": {
+        #     "samples": [
+        #         "HPlusCharm_4FS_MuRFScaleDynX0p50_HToWWTo2L2Nu_M125_TuneCP5_13TeV-amcatnloFXFX-pythia8"]}
+        #         "gchcWW2L2Nu_4f",
+        #         "TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8"]}
     },
     # Input and output files
     "workflow": hplusc_wf["HWWtest"],
-    "output": "MC_fixHLT_UL17",
+    "output": "MC_medium_UL17",
     "run_options": {
         "executor": "parsl/condor/naf_lite",
-        # "executor":"futures",
-        # "executor": "iterative",
         "workers": 2,
-        "scaleout": 500,
+        "scaleout": 100,
         "walltime": "03:00:00",
         "mem_per_worker": 2,  # GB
-        "chunk": 150000,
+        "chunk": 120000,
         "skipbadfiles": True,
-        "retries": 20,
+        "retries": 50,
+        # "limit":15,
         "sample_size": 150,
-        "index": "11,0",
+        "index": "0,0",
         #     "voms": None,
-        # "splitjobs": False,
     },
     ## selections
     "categories": {"cats": [], "cats2": []},
@@ -57,30 +60,49 @@ cfg = {
                 "JME": "jec_compiled.pkl.gz",
                 "roccor": None,
                 "BTV": {"deepJet": "shape"},
+                "JMAR": {"PUJetID_eff": "L"},
+                "HLT": {"h2D_SF_emu_lepABpt_FullError"},
                 "LSF": {
-                    "ele_ID 2017": "wp90iso",
+                    "ele_ID 2017": "Medium",  # "wp90iso",
                     "ele_Reco 2017": "RecoAbove20",
                     "ele_Reco_low 2017": "RecoBelow20",
                     "mu_Reco 2017_UL": "NUM_TrackerMuons_DEN_genTracks",
-                    "mu_ID 2017_UL": "NUM_TightID_DEN_TrackerMuons",
-                    "mu_Iso 2017_UL": "NUM_TightRelIso_DEN_TightIDandIPCut",
-                    "mu_ID_low NUM_TightID_DEN_TrackerMuons": "Efficiency_muon_trackerMuon_Run2017_UL_ID.histo.json",
+                    "mu_ID 2017_UL": "NUM_MediumID_DEN_TrackerMuons",  # "NUM_TightID_DEN_TrackerMuons",
+                    "mu_Iso 2017_UL": "NUM_TightRelIso_DEN_MediumID",  # "NUM_TightRelIso_DEN_TightIDandIPCut",
+                    # "mu_ID_low NUM_TightID_DEN_TrackerMuons": "Efficiency_muon_trackerMuon_Run2017_UL_ID.histo.json",
+                    "mu_ID_low NUM_MediumID_DEN_TrackerMuons": "Efficiency_muon_trackerMuon_Run2017_UL_ID.histo.json",
                     "mu_Reco_low NUM_TrackerMuons_DEN_genTracks": "Efficiency_muon_generalTracks_Run2017_UL_trackerMuon.histo.json",
                 },
+                # "LSF": {
+                #    "ele_ID 2017": "wp90iso",
+                #    "ele_Reco 2017": "RecoAbove20",
+                #     "ele_Reco_low 2017": "RecoBelow20",
+                #     "mu_Reco 2017_UL": "NUM_TrackerMuons_DEN_genTracks",
+                #     "mu_ID 2017_UL": "NUM_TightID_DEN_TrackerMuons",
+                #     "mu_Iso 2017_UL": "NUM_TightRelIso_DEN_TightIDandIPCut",
+                #     "mu_ID_low NUM_TightID_DEN_TrackerMuons": "Efficiency_muon_trackerMuon_Run2017_UL_ID.histo.json",
+                #     "mu_Reco_low NUM_TrackerMuons_DEN_genTracks": "Efficiency_muon_generalTracks_Run2017_UL_trackerMuon.histo.json",
+                # },'''
             },
         },
     },
     "systematic": {
         "JERC": "split",
         "weights": True,
+        "roccor": False,
     },
     ## user specific
     "userconfig": {
         "export_array": False,
         "BDT": {
-            "json": "src/Hpluscharm/MVA/xgb_output/None_binary_LM_nsv_UL17_nofocal.json",
+            "jsonbkg": "src/Hpluscharm/MVA/None_binary_bkg_UL17_nofocal.json",
+            "jsonhiggs": "src/Hpluscharm/MVA/None_binary_higgs_UL17_nofocal.json",
+            "clusterSR2_LM": "src/Hpluscharm/MVA/train0620/kmeans_model_UL17_50_SR2_LM.joblib",
+            "clusterSR_LM": "src/Hpluscharm/MVA/train0620/kmeans_model_UL17_35_SR_LM.joblib",
             "binning": {
-                "SR2_LM": [
+                "SR2_LM": np.arange(0, 51, 1),
+                "SR_LM": np.arange(0, 36, 1),
+                "SR2_LM_1D": [
                     0.0,
                     0.023,
                     0.045,
@@ -128,7 +150,7 @@ cfg = {
                     0.99,
                     1.0,
                 ],
-                "SR_LM": [
+                "SR_LM_1D": [
                     0.0,
                     0.034,
                     0.068,

@@ -303,8 +303,8 @@ _coverage1sd = scipy.stats.norm.cdf(1) - scipy.stats.norm.cdf(-1)
 def compatible(self, other, data_is_np=False):
     """Checks if this histogram is compatible with another, i.e. they have identical binning"""
     if data_is_np:
-        if len(other.axes) != 1:
-            return False
+        if len(self) == len(other):return True
+        else :return False
     else:
         if len(self.axes) != len(other.axes):
             return False
@@ -418,17 +418,20 @@ def clopper_pearson_interval(num, denom, coverage=_coverage1sd):
 def plotratio(
     num,
     denom,
+    
     ax=None,
+    edges=None,
     clear=True,
     flow=None,
     xerr=False,
     error_opts={},
     denom_fill_opts={},
     guide_opts={},
+    sumw2_num=None,
+    sumw2_denom=None,
     unc="num",
     label=None,
     ext_denom_error=None,
-    data_is_np=False,
 ):
     """Create a ratio plot, dividing two compatible histograms
     Parameters
@@ -467,7 +470,6 @@ def plotratio(
             Associate a label to this entry (note: y axis label set by ``num.label``)
         ext_denom_error: list of np.array[error_up,error_down], optional
             External MC errors not stored in the original histogram
-        data_is_np : If data array is a numpy array, take sumw2=sumw
     Returns
     -------
         ax : matplotlib.axes.Axes
@@ -480,19 +482,22 @@ def plotratio(
             raise ValueError("ax must be a matplotlib Axes object")
         if clear:
             ax.clear()
+    data_is_np = False if  hasattr(num,"axes") else True
+    print(data_is_np)
+
     if not compatible(num, denom, data_is_np):
         raise ValueError(
             "numerator and denominator histograms have incompatible axis definitions"
         )
-    if len(denom.axes) > 1:
+    if not data_is_np and len(denom.axes) > 1:
         raise ValueError("plotratio() can only support one-dimensional histograms")
     if error_opts is None and denom_fill_opts is None and guide_opts is None:
         error_opts = {}
         denom_fill_opts = {}
 
-    axis = denom.axes[0]
-
-    edges = axis.edges
+    if edges is None:
+        edges = num.axes[0].edges
+   
     if flow == "show":
         edges = np.array(
             [
@@ -505,16 +510,16 @@ def plotratio(
         )
     centers = (edges[1:] + edges[:-1]) / 2
     ranges = (edges[1:] - edges[:-1]) / 2 if xerr else None
-    sumw_denom, sumw2_denom = denom.values(), denom.variances()
 
-    sumw_denom, sumw2_denom = denom.values(), denom.variances()
 
     if data_is_np:
-        sumw_num, sumw2_num = (
-            num,
-            num,
-        )  ### since no weights assigned to data, variances=value
+        if sumw2_num is None: raise("Please provide numerator variances")
+        if sumw2_denom is None: raise("Please provide denominator variances")
+        sumw_denom,sumw_num = denom,num
     else:
+        sumw_denom, sumw2_denom = denom.values(), denom.variances()
+        sumw_num, sumw2_num = num.values(), num.variances()
+
         if flow == "show":
             print("Show under/overflow bin ")
             sumw_num, sumw2_num = (
@@ -621,7 +626,7 @@ def plotratio(
         ax.autoscale(axis="x", tight=True)
         ax.set_ylim(0, None)
 
-    return ax
+    return ax,rsumw,rsumw_err
 
 
 ## Calculate SF error

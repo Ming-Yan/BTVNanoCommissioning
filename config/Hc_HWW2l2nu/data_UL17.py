@@ -1,4 +1,5 @@
 from Hpluscharm.workflows import workflows as hplusc_wf
+import numpy as np
 
 cfg = {
     "dataset": {
@@ -20,13 +21,13 @@ cfg = {
     },
     # Input and output files
     "workflow": hplusc_wf["HWWtest"],
-    "output": "data_fixHLT_UL17",
+    "output": "data_cluster_UL17",
     "run_options": {
         "executor": "parsl/condor/naf_lite",
         # "executor":"futures",
         # "executor": "iterative",
         "workers": 2,
-        "scaleout": 500,
+        "scaleout": 400,
         "walltime": "03:00:00",
         "mem_per_worker": 2,  # GB
         "chunk": 200000,
@@ -76,17 +77,19 @@ cfg = {
             },
         },
     },
-    "systematic": {
-        "JERC": False,
-        "weights": False,
-    },
+    "systematic": {"JERC": False, "weights": False, "roccor": False},
     ## user specific
     "userconfig": {
         "export_array": False,
         "BDT": {
-            "json": "src/Hpluscharm/MVA/xgb_output/None_binary_LM_nsv_UL17_nofocal.json",
+            "jsonbkg": "src/Hpluscharm/MVA/None_binary_bkg_UL17_nofocal.json",
+            "jsonhiggs": "src/Hpluscharm/MVA/None_binary_higgs_UL17_nofocal.json",
+            "clusterSR2_LM": "src/Hpluscharm/MVA/train0620/kmeans_model_UL17_50_SR2_LM.joblib",
+            "clusterSR_LM": "src/Hpluscharm/MVA/train0620/kmeans_model_UL17_35_SR_LM.joblib",
             "binning": {
-                "SR2_LM": [
+                "SR2_LM": np.arange(0, 51, 1),
+                "SR_LM": np.arange(0, 36, 1),
+                "SR2_LM_1D": [
                     0.0,
                     0.023,
                     0.045,
@@ -134,7 +137,7 @@ cfg = {
                     0.99,
                     1.0,
                 ],
-                "SR_LM": [
+                "SR_LM_1D": [
                     0.0,
                     0.034,
                     0.068,

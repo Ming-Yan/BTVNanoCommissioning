@@ -1,3 +1,6 @@
+*.png
+*.pdf
+*.joblib
 *.coffea
 *.pyc
 *.*~
@@ -36,5 +39,7 @@ dask-worker-space/
 plot/
 plotting/plot/
 *array*
+*.print.txt
+*configurator.py
 ## other submodules
 src/Hpluscharm/

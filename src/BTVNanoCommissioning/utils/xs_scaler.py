@@ -3,6 +3,7 @@ import hist
 from coffea.processor import accumulate
 import os
 from BTVNanoCommissioning.helpers.xsection import xsection
+import numpy as np
 
 
 def scale_xs(hist, lumi, events):
@@ -38,8 +39,6 @@ def scaleSumW(output, lumi):
                     sumw[sample] = sumw[sample] + float(output[files][sample]["sumw"])
                 else:
                     sumw[sample] = float(output[files][sample]["sumw"])
-    for s in sumw.keys():
-        print(s, sumw[s])
     for files in output.keys():
         if "sumw" not in output[files].keys():
             scaled[files] = {}
