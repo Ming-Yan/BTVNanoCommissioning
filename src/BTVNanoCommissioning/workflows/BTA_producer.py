@@ -18,7 +18,6 @@ from BTVNanoCommissioning.utils.correction import (
     load_SF,
     JME_shifts,
     JPCalibHandler,
-    jetveto,
 )
 
 
@@ -1137,6 +1136,7 @@ class NanoProcessor(processor.ProcessorABC):
             f"xrdcp -p --silent {fname} root://eoscms.cern.ch//eos/cms/store/group/phys_btag/milee/{dirname}/{self._campaign.replace('Run3','')}/{fname}"
         )
         os.system(f"rm {fname}")
+
         return {dataset: len(events)}
 
     def postprocess(self, accumulator):
