@@ -424,12 +424,7 @@ class NanoProcessor(processor.ProcessorABC):
                 events[event_level].PV.npvs,
                 weight=weight,
             )
-            if not isRealData:
-                output["pu"].fill(
-                    syst,
-                    events[event_level].Pileup.nTrueInt,
-                    weight=weight,
-                )
+
         #######################
         #  Create root files  #
         #######################
