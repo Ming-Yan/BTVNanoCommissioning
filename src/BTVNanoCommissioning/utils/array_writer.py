@@ -59,6 +59,7 @@ def array_writer(
         )
 
         # Handle kinOnly vars
+        remove = remove + ["PFCands", "hl", "sl", "posl", "negl"]
         for v in remove:
             out_branch = np.delete(out_branch, np.where((out_branch == v)))
 

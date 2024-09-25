@@ -1,5 +1,7 @@
 from BTVNanoCommissioning.helpers.definitions import definitions, SV_definitions
 import hist as Hist
+import awkward as ak
+from BTVNanoCommissioning.helpers.func import flatten
 
 
 def histogrammer(events, workflow):
@@ -30,7 +32,6 @@ def histogrammer(events, workflow):
     n_axis = Hist.axis.Integer(0, 10, name="n", label="N obj")
     osss_axis = Hist.axis.IntCategory([1, -1], name="osss", label="OS(+)/SS(-)")
     _hist_dict["npvs"] = Hist.Hist(syst_axis, npvs_axis, Hist.storage.Weight())
-    _hist_dict["pu"] = Hist.Hist(syst_axis, npvs_axis, Hist.storage.Weight())
     ### Workflow specific
     if "example" == workflow:
         obj_list = [
@@ -115,7 +116,7 @@ def histogrammer(events, workflow):
             Hist.storage.Weight(),
         )
 
-    elif "ttdilep_sf" == workflow:
+    elif "ttdilep_sf" == workflow or "emctag_ttdilep_sf" == workflow:
         obj_list = ["mu", "ele"]
         for i in range(2):
             obj_list.append(f"jet{i}")
@@ -544,7 +545,7 @@ def histogrammer(events, workflow):
         "ProbaN",
     ]
     for disc in disc_list:
-        if disc not in events.Jet.fields and "Trans" not in disc:
+        if disc not in events.Jet.fields:
             continue
         njet = 1
         if "ttdilep_sf" in workflow:
@@ -553,15 +554,7 @@ def histogrammer(events, workflow):
             njet = 4
         for i in range(njet):
             if "Wc_sf" in workflow:
-                if "Trans" in disc:
-                    _hist_dict[f"{disc}_{i}"] = Hist.Hist(
-                        syst_axis,
-                        flav_axis,
-                        osss_axis,
-                        Hist.axis.Regular(40, 0, 8, name="discr", label=disc),
-                        Hist.storage.Weight(),
-                    )
-                elif "btag" in disc or "ProbaN" == disc:
+                if "btag" in disc or "ProbaN" == disc:
                     _hist_dict[f"{disc}_{i}"] = Hist.Hist(
                         syst_axis,
                         flav_axis,
@@ -595,13 +588,6 @@ def histogrammer(events, workflow):
                     )
 
             else:
-                if "Trans" in disc:
-                    _hist_dict[f"{disc}_{i}"] = Hist.Hist(
-                        syst_axis,
-                        flav_axis,
-                        Hist.axis.Regular(40, 0, 8, name="discr", label=disc),
-                        Hist.storage.Weight(),
-                    )
                 if "btag" in disc or "ProbaN" == disc:
                     _hist_dict[f"{disc}_{i}"] = Hist.Hist(
                         syst_axis,
@@ -631,3 +617,444 @@ def histogrammer(events, workflow):
                         Hist.storage.Weight(),
                     )
     return _hist_dict
+
+
+def histo_writter(pruned_ev, output, weights, systematics, isSyst, SF_map):
+    exclude_btv = [
+        "DeepCSVC",
+        "DeepCSVB",
+        "DeepJetB",
+        "DeepJetC",
+    ]  # exclude b-tag SFs for btag inputs
+    # define Jet flavor
+    if "hadronFlavour" not in pruned_ev.SelJet.fields:
+        isRealData = True
+        genflavor = ak.zeros_like(pruned_ev.SelJet.pt, dtype=int)
+        smflav = ak.zeros_like(pruned_ev.MuonJet.pt, dtype=int)
+    if "hadronFlavour" in pruned_ev.SelJet.fields:
+        isRealData = False
+        genflavor = ak.values_astype(
+            pruned_ev.SelJet.hadronFlavour + 1 * (pruned_ev.SelJet.partonFlavour == 0)
+            & (pruned_ev.SelJet.hadronFlavour == 0),
+            int,
+        )
+        if "MuonJet" in pruned_ev.fields:
+            smflav = ak.values_astype(
+                1 * (pruned_ev.MuonJet.partonFlavour == 0)
+                & (pruned_ev.MuonJet.hadronFlavour == 0)
+                + pruned_ev.MuonJet.hadronFlavour,
+                int,
+            )
+
+    for syst in systematics:
+        if isSyst == False and syst != "nominal":
+            break
+        weight = (
+            weights.weight()
+            if syst == "nominal" or syst not in list(weights.variations)
+            else weights.weight(modifier=syst)
+        )
+        for histname, h in output.items():
+            if (
+                "Deep" in histname
+                and "btag" not in histname
+                and histname in pruned_ev.SelJet.fields
+            ):
+
+                h.fill(
+                    syst,
+                    flatten(genflavor),
+                    flatten(pruned_ev.SelJet[histname]),
+                    weight=flatten(
+                        ak.broadcast_arrays(
+                            weights.partial_weight(exclude=exclude_btv),
+                            pruned_ev.SelJet["pt"],
+                        )[0]
+                    ),
+                )
+            elif (
+                "PFCands" in pruned_ev.fields
+                and "PFCands" in histname
+                and histname.split("_")[1] in pruned_ev.PFCands.fields
+            ):
+                h.fill(
+                    syst,
+                    flatten(ak.broadcast_arrays(smflav, pruned_ev.PFCands["pt"])[0]),
+                    flatten(pruned_ev.PFCands[histname.replace("PFCands_", "")]),
+                    weight=flatten(
+                        ak.broadcast_arrays(
+                            weights.partial_weight(exclude=exclude_btv),
+                            pruned_ev.PFCands["pt"],
+                        )[0]
+                    ),
+                )
+            elif "jet_" in histname and "mu" not in histname:
+                h.fill(
+                    syst,
+                    flatten(genflavor),
+                    flatten(pruned_ev.SelJet[histname.replace("jet_", "")]),
+                    weight=flatten(
+                        ak.broadcast_arrays(weight, pruned_ev.SelJet["pt"])[0]
+                    ),
+                )
+
+            elif (
+                "hl_" in histname and histname.replace("hl_", "") in pruned_ev.hl.fields
+            ):
+
+                h.fill(
+                    syst,
+                    flatten(events.hl[histname.replace("hl_", "")]),
+                    weight=weight,
+                )
+            elif (
+                "sl_" in histname and histname.replace("sl_", "") in pruned_ev.sl.fields
+            ):
+                h.fill(
+                    syst,
+                    flatten(pruned_ev.sl[histname.replace("sl_", "")]),
+                    weight=weight,
+                )
+            elif (
+                "ele_" in histname
+                and histname.replace("ele_", "") in pruned_ev.Electron.fields
+            ):
+
+                h.fill(
+                    syst,
+                    flatten(events.Electron[histname.replace("ele_", "")]),
+                    weight=weight,
+                )
+            elif (
+                "mu_" in histname
+                and histname.replace("mu_", "") in pruned_ev.Muon.fields
+            ):
+                h.fill(
+                    syst,
+                    flatten(pruned_ev.Muon[histname.replace("mu_", "")]),
+                    weight=weight,
+                )
+            elif (
+                "negl_" in histname
+                and histname.replace("negl_", "") in pruned_ev.Muon.fields
+            ):
+                h.fill(
+                    syst,
+                    flatten(pruned_ev.Muon[histname.replace("negl_", "")]),
+                    weight=weight,
+                )
+            elif (
+                "posl_" in histname
+                and histname.replace("posl_", "") in pruned_ev.Electron.fields
+            ):
+                h.fill(
+                    syst,
+                    flatten(pruned_ev.Electron[histname.replace("posl_", "")]),
+                    weight=weight,
+                )
+            elif "soft_l" in histname and not "ptratio" in histname:
+                h.fill(
+                    syst,
+                    smflav,
+                    flatten(pruned_ev.SoftMuon[histname.replace("soft_l_", "")]),
+                    weight=weight,
+                )
+            elif "lmujet_" in histname:
+                h.fill(
+                    syst,
+                    smflav,
+                    flatten(pruned_ev.MuonJet[histname.replace("lmujet_", "")]),
+                    weight=weight,
+                )
+            elif (
+                "btag" in histname
+                and "0" in histname
+                and histname.replace("_0", "") in pruned_ev.SelJet.fields
+            ):
+                for i in range(2):
+                    if (
+                        str(i) not in histname
+                        or histname.replace(f"_{i}", "") not in pruned_ev.SelJet.fields
+                    ):
+                        continue
+                    if i == 1 and any(
+                        j < 2 for j in ak.count(pruned_ev.SelJet, axis=-1)
+                    ):
+                        continue
+
+                    h.fill(
+                        syst="noSF",
+                        flav=smflav,
+                        discr=pruned_ev.MuonJet[histname.replace(f"_{i}", "")],
+                        weight=weights.partial_weight(exclude=exclude_btv),
+                    )
+                    if not isRealData and "btag" in SF_map.keys():
+                        h.fill(
+                            syst=syst,
+                            flav=smflav,
+                            discr=pruned_ev.MuonJet[histname.replace(f"_{i}", "")],
+                            weight=weight,
+                        )
+
+        output["njet"].fill(syst, ak.count(pruned_ev.SelJet.pt, axis=-1), weight=weight)
+        output["hl_ptratio"].fill(
+            syst,
+            genflavor[:, 0],
+            ratio=pruned_ev.hl.pt / pruned_ev.SelJet[:, 0].pt,
+            weight=weight,
+        )
+        output["sl_ptratio"].fill(
+            syst,
+            genflavor[:, 0],
+            ratio=pruned_ev.sl.pt / pruned_ev.SelJet[:, 0].pt,
+            weight=weight,
+        )
+        if "dr_mumu" in output.keys():
+            output["dr_mumu"].fill(
+                syst, pruned_ev.posl.delta_r(pruned_ev.negl), weight=weight
+            )
+
+        if "MuonJet" in pruned_ev.fields:
+            output["soft_l_ptratio"].fill(
+                syst,
+                flav=smflav,
+                ratio=pruned_ev.SoftMuon.pt / pruned_ev.MuonJet.pt,
+                weight=weight,
+            )
+            output["dr_lmujetsmu"].fill(
+                syst,
+                flav=smflav,
+                dr=pruned_ev.MuonJet.delta_r(pruned_ev.SoftMuon),
+                weight=weight,
+            )
+            output["dr_lmujethmu"].fill(
+                syst,
+                flav=smflav,
+                dr=pruned_ev.MuonJet.delta_r(pruned_ev.Muon),
+                weight=weight,
+            )
+            output["dr_lmusmu"].fill(
+                syst, pruned_ev.Muon.delta_r(pruned_ev.SoftMuon), weight=weight
+            )
+        if "dilep" in pruned_ev.fields:
+            output["z_pt"].fill(syst, flatten(pruned_ev.dilep.pt), weight=weight)
+            output["z_eta"].fill(syst, flatten(pruned_ev.dilep.eta), weight=weight)
+            output["z_phi"].fill(syst, flatten(pruned_ev.dilep.phi), weight=weight)
+            output["z_mass"].fill(syst, flatten(pruned_ev.dilep.mass), weight=weight)
+        if "MET" in output.keys():
+            output["MET_pt"].fill(syst, flatten(pruned_ev.MET.pt), weight=weight)
+            output["MET_phi"].fill(syst, flatten(pruned_ev.MET.phi), weight=weight)
+        output["npvs"].fill(
+            syst,
+            pruned_ev.PV.npvs,
+            weight=weight,
+        )
+
+
+def histo_writter(pruned_ev, output, weights, systematics, isSyst, SF_map):
+    exclude_btv = [
+        "DeepCSVC",
+        "DeepCSVB",
+        "DeepJetB",
+        "DeepJetC",
+    ]  # exclude b-tag SFs for btag inputs
+    # define Jet flavor
+    if "hadronFlavour" not in pruned_ev.SelJet.fields:
+        isRealData = True
+        genflavor = ak.zeros_like(pruned_ev.SelJet.pt, dtype=int)
+        smflav = ak.zeros_like(pruned_ev.SelJet.pt, dtype=int)
+    if "hadronFlavour" in pruned_ev.SelJet.fields:
+        isRealData = False
+        genflavor = ak.values_astype(
+            pruned_ev.SelJet.hadronFlavour + 1 * (pruned_ev.SelJet.partonFlavour == 0)
+            & (pruned_ev.SelJet.hadronFlavour == 0),
+            int,
+        )
+        if "MuonJet" in pruned_ev.fields:
+            smflav = ak.values_astype(
+                1 * (pruned_ev.MuonJet.partonFlavour == 0)
+                & (pruned_ev.MuonJet.hadronFlavour == 0)
+                + pruned_ev.MuonJet.hadronFlavour,
+                int,
+            )
+
+    for syst in systematics:
+        if isSyst == False and syst != "nominal":
+            break
+        weight = (
+            weights.weight()
+            if syst == "nominal" or syst == shift_name
+            else weights.weight(modifier=syst)
+        )
+        for histname, h in output.items():
+            if (
+                "Deep" in histname
+                and "btag" not in histname
+                and histname in pruned_ev.SelJet.fields
+            ):
+
+                h.fill(
+                    syst,
+                    flatten(genflavor),
+                    flatten(pruned_ev.SelJet[histname]),
+                    weight=flatten(
+                        ak.broadcast_arrays(
+                            weights.partial_weight(exclude=exclude_btv),
+                            pruned_ev.SelJet["pt"],
+                        )[0]
+                    ),
+                )
+            elif (
+                "PFCands" in pruned_ev.fields
+                and "PFCands" in histname
+                and histname.split("_")[1] in pruned_ev.PFCands.fields
+            ):
+                h.fill(
+                    syst,
+                    flatten(ak.broadcast_arrays(smflav, pruned_ev.PFCands["pt"])[0]),
+                    flatten(pruned_ev.PFCands[histname.replace("PFCands_", "")]),
+                    weight=flatten(
+                        ak.broadcast_arrays(
+                            weights.partial_weight(exclude=exclude_btv),
+                            pruned_ev.PFCands["pt"],
+                        )[0]
+                    ),
+                )
+            elif "jet_" in histname and "mu" not in histname:
+                h.fill(
+                    syst,
+                    flatten(genflavor),
+                    flatten(pruned_ev.SelJet[histname.replace("jet_", "")]),
+                    weight=flatten(
+                        ak.broadcast_arrays(weight, pruned_ev.SelJet["pt"])[0]
+                    ),
+                )
+            elif (
+                "hl_" in histname
+                and histname.replace("hl_", "") in pruned_ev.Muon.fields
+            ):
+                h.fill(
+                    syst,
+                    flatten(pruned_ev.Muon[histname.replace("hl_", "")]),
+                    weight=weight,
+                )
+            elif (
+                "sl_" in histname
+                and histname.replace("sl_", "") in pruned_ev.Electron.fields
+            ):
+                h.fill(
+                    syst,
+                    flatten(pruned_ev.Electron[histname.replace("sl_", "")]),
+                    weight=weight,
+                )
+
+            elif "soft_l" in histname and not "ptratio" in histname:
+                h.fill(
+                    syst,
+                    smflav,
+                    flatten(pruned_ev.SoftMuon[histname.replace("soft_l_", "")]),
+                    weight=weight,
+                )
+            elif "lmujet_" in histname:
+                h.fill(
+                    syst,
+                    smflav,
+                    flatten(pruned_ev.MuonJet[histname.replace("lmujet_", "")]),
+                    weight=weight,
+                )
+
+            elif (
+                "btag" in histname
+                and "0" in histname
+                and histname.replace("_0", "") in pruned_ev.SelJet.fields
+            ):
+                for i in range(4):
+                    if (
+                        str(i) not in histname
+                        or histname.replace(f"_{i}", "") not in pruned_ev.SelJet.fields
+                    ):
+                        continue
+
+                    if "MuonJet" in pruned_ev.fields:
+                        h.fill(
+                            syst="noSF",
+                            flav=smflav,
+                            discr=pruned_ev.MuonJet[histname.replace(f"_{i}", "")],
+                            weight=weights.partial_weight(exclude=exclude_btv),
+                        )
+                        if not isRealData and "btag" in SF_map.keys():
+                            h.fill(
+                                syst=syst,
+                                flav=smflav,
+                                discr=pruned_ev.MuonJet[histname.replace(f"_{i}", "")],
+                                weight=weight,
+                            )
+                    else:
+                        h.fill(
+                            syst="noSF",
+                            flav=genflavor[:, i],
+                            discr=pruned_ev.SelJet[histname.replace(f"_{i}", "")][:, i],
+                            weight=weights.partial_weight(exclude=exclude_btv),
+                        )
+                        if not isRealData and "btag" in SF_map.keys():
+                            h.fill(
+                                syst=syst,
+                                flav=genflavor[:, i],
+                                discr=pruned_ev.SelJet[histname.replace(f"_{i}", "")][
+                                    :, i
+                                ],
+                                weight=weight,
+                            )
+
+        output["njet"].fill(syst, ak.count(pruned_ev.SelJet.pt, axis=-1), weight=weight)
+
+        if "hl_ptratio" in output.keys():
+            output["hl_ptratio"].fill(
+                syst,
+                genflavor[:, 0],
+                ratio=pruned_ev.Muon.pt / pruned_ev.SelJet[:, 0].pt,
+                weight=weight,
+            )
+        if "sl_ptratio" in output.keys():
+            output["sl_ptratio"].fill(
+                syst,
+                genflavor[:, 0],
+                ratio=pruned_ev.Electron.pt / pruned_ev.SelJet[:, 0].pt,
+                weight=weight,
+            )
+        if "MuonJet" in pruned_ev.fields:
+            output["soft_l_ptratio"].fill(
+                syst,
+                flav=smflav,
+                ratio=pruned_ev.SoftMuon.pt / pruned_ev.MuonJet.pt,
+                weight=weight,
+            )
+            output["dr_lmujetsmu"].fill(
+                syst,
+                flav=smflav,
+                dr=pruned_ev.MuonJet.delta_r(pruned_ev.SoftMuon),
+                weight=weight,
+            )
+            output["dr_lmujethmu"].fill(
+                syst,
+                flav=smflav,
+                dr=pruned_ev.MuonJet.delta_r(pruned_ev.Muon),
+                weight=weight,
+            )
+            output["dr_lmusmu"].fill(
+                syst, pruned_ev.Muon.delta_r(pruned_ev.SoftMuon), weight=weight
+            )
+        if "dilep" in pruned_ev.fields:
+            output["z_pt"].fill(syst, flatten(pruned_ev.dilep.pt), weight=weight)
+            output["z_eta"].fill(syst, flatten(pruned_ev.dilep.eta), weight=weight)
+            output["z_phi"].fill(syst, flatten(pruned_ev.dilep.phi), weight=weight)
+            output["z_mass"].fill(syst, flatten(pruned_ev.dilep.mass), weight=weight)
+        if "MET" in output.keys():
+            output["MET_pt"].fill(syst, flatten(pruned_ev.MET.pt), weight=weight)
+            output["MET_phi"].fill(syst, flatten(pruned_ev.MET.phi), weight=weight)
+        output["npvs"].fill(
+            syst,
+            pruned_ev.PV.npvs,
+            weight=weight,
+        )
+    return output

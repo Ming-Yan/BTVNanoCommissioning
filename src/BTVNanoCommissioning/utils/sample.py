@@ -38,12 +38,12 @@ predefined_sample = {
         ],
     },
     "ctag_DY_sf": {
-        "data": ["Muon"],
+        "data": ["Muon0", "Muon1"],
         "MC": ["DYto2L-2Jets_MLL-50_TuneCP5_13p6TeV_amcatnloFXFX-pythia8"],
         "minor_MC": ["TTto2L2Nu_TuneCP5_13p6TeV_powheg-pythia8"],
     },
     "ectag_DY_sf": {
-        "data": ["EGamma"],
+        "data": ["EGamma0", "EGamma1"],
         "MC": ["DYto2L-2Jets_MLL-50_TuneCP5_13p6TeV_amcatnloFXFX-pythia8"],
         "minor_MC": ["TTto2L2Nu_TuneCP5_13p6TeV_powheg-pythia8"],
     },

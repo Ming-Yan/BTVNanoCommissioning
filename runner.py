@@ -201,7 +201,7 @@ def scaleout_parser(parser):
     parser.add_argument(
         "--chunk",
         type=int,
-        default=150000,
+        default=200000,
         metavar="N",
         help="Number of events per process chunk",
     )

@@ -1,4 +1,0 @@
-Summer23BPix
-2023
-parsl/condor/naf_lite
-9450

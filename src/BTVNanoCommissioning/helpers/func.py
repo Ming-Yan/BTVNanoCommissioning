@@ -65,6 +65,16 @@ def _is_rootcompat(a):
     return False
 
 
+def PFCand_link(events, event_level, jetindx):
+
+    spfcands = events[event_level].PFCands[
+        events[event_level]
+        .JetPFCands[events[event_level].JetPFCands.jetIdx == jetindx[event_level]]
+        .pFCandsIdx
+    ]
+    return spfcands
+
+
 def uproot_writeable(events, include=["events", "run", "luminosityBlock"]):
     ev = {}
     include = np.array(include)
