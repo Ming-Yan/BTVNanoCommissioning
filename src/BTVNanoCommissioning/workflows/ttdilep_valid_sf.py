@@ -196,23 +196,14 @@ class NanoProcessor(processor.ProcessorABC):
         ####################
         # Selected objects #
         ####################
-        smu = events.Muon[event_level]
-        smu = smu[:, 0]
-        sel = events.Electron[event_level]
-        sel = sel[:, 0]
-        sjets = event_jet[event_level]
-        nseljet = ak.count(sjets.pt, axis=1)
-        sjets = sjets[:, :2]
         # Keep the structure of events and pruned the object size
         pruned_ev = events[event_level]
         pruned_ev["SelJet"] = event_jet[event_level][:, :2]
-        pruned_ev["Muon"] = events.Muon[event_level][:, 0]
-        pruned_ev["Electron"] = events.Electron[event_level][:, 0]
-        if "PFCands" in events.fields:
-            pruned_ev.PFCands = spfcands
-
-        pruned_ev["dr_mujet0"] = smu.delta_r(sjets[:, 0])
-        pruned_ev["dr_mujet1"] = smu.delta_r(sjets[:, 1])
+        pruned_ev["SelMuon"] = events.Muon[event_level][:, 0]
+        pruned_ev["SelElectron"] = events.Electron[event_level][:, 0]
+        pruned_ev["dr_mujet0"] = pruned_ev.Muon.delta_r(pruned_ev.Jet[:, 0])
+        pruned_ev["dr_mujet1"] = pruned_ev.Muon.delta_r(pruned_ev.Jet[:, 1])
+        pruned_ev["njet"] = ak.count(event_jet[event_level].pt, axis=1)
         # Find the PFCands associate with selected jets. Search from jetindex->JetPFCands->PFCand
         if "PFCands" in events.fields:
             jetindx0 = jetindx[:, 0]
@@ -232,16 +223,6 @@ class NanoProcessor(processor.ProcessorABC):
                 ]
                 .pFCandsIdx
             ]
-        # Keep the structure of events and pruned the object size
-        pruned_ev = events[event_level]
-        pruned_ev["SelJet"] = sjets
-        pruned_ev["Muon"] = smu
-        pruned_ev["Electron"] = sel
-        if "PFCands" in events.fields:
-            pruned_ev.PFCands = spfcands
-
-        pruned_ev["dr_mujet0"] = smu.delta_r(sjets[:, 0])
-        pruned_ev["dr_mujet1"] = smu.delta_r(sjets[:, 1])
 
         ####################
         #     Output       #

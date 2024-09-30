@@ -211,14 +211,12 @@ class NanoProcessor(processor.ProcessorABC):
         ####################
         # Selected objects #
         ####################
-        sposmu = pos_dilep[event_level]
-        sposmu = sposmu[:, 0]
-        snegmu = neg_dilep[event_level]
-        snegmu = snegmu[:, 0]
+        sposmu = pos_dilep[event_level][:, 0]
+        snegmu = neg_dilep[event_level][:, 0]
         sz = sposmu + snegmu
-        sjets = event_jet[event_level]
-        sel_jet = sjets[:, 0]
-        njet = ak.count(sjets.pt, axis=1)
+
+        sel_jet = event_jet[event_level][:, 0]
+
         sel_mu = ak.concatenate([sposmu, snegmu])
         smu = ak.zip(
             {
@@ -228,26 +226,27 @@ class NanoProcessor(processor.ProcessorABC):
         )
         # Keep the structure of events and pruned the object size
         pruned_ev = events[event_level]
-        pruned_ev["SelJet"] = sjets
-        pruned_ev["LeadJet"] = sel_jet
+        pruned_ev["SelJet"] = event_jet[event_level][:, 0]
         if isMu:
             pruned_ev["MuonPlus"] = sposmu
             pruned_ev["MuonMinus"] = snegmu
             pruned_ev["posl"] = sposmu
             pruned_ev["negl"] = snegmu
-            kinOnly = ["Muon", "MuonPlus", "MuonMinus", "Jet"]
+            pruned_ev["SelMuon"] = ak.concatenate([sposmu, snegmu], axis=1)
+            kinOnly = ["SelMuon", "MuonPlus", "MuonMinus"]
         else:
             pruned_ev["ElectronPlus"] = sposmu
             pruned_ev["ElectronMinus"] = snegmu
             pruned_ev["posl"] = sposmu
             pruned_ev["negl"] = snegmu
-            kinOnly = ["Electron", "ElectronPlus", "ElectronMinus", "Jet"]
-        pruned_ev["dilep"] = sposmu + snegmu
+            pruned_ev["SelElectron"] = ak.concatenate([sposmu, snegmu], axis=1)
+            kinOnly = ["SelElectron", "ElectronPlus", "ElectronMinus"]
+        pruned_ev["dilep"] = sz
         pruned_ev["dilep", "pt"] = pruned_ev.dilep.pt
         pruned_ev["dilep", "eta"] = pruned_ev.dilep.eta
         pruned_ev["dilep", "phi"] = pruned_ev.dilep.phi
         pruned_ev["dilep", "mass"] = pruned_ev.dilep.mass
-        pruned_ev["njet"] = njet
+        pruned_ev["njet"] = ak.count(event_jet[event_level].pt, axis=1)
 
         pruned_ev["dr_mu1jet"] = sposmu.delta_r(sel_jet)
         pruned_ev["dr_mu2jet"] = snegmu.delta_r(sel_jet)

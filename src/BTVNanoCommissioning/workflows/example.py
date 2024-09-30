@@ -160,8 +160,8 @@ class NanoProcessor(processor.ProcessorABC):
         # Keep the structure of events and pruned the object size
         pruned_ev = events[event_level]
         pruned_ev["SelJet"] = event_jet[event_level][:, 0]
-        pruned_ev["Muon"] = event_mu[event_level][:, 0]
-        pruned_ev["Electron"] = event_e[event_level][:, 0]
+        pruned_ev["SelMuon"] = event_mu[event_level][:, 0]
+        pruned_ev["SelElectron"] = event_e[event_level][:, 0]
         pruned_ev["mujet_ptratio"] = pruned_ev.Muon.pt / pruned_ev.SelJet.pt
         pruned_ev["mujet_dr"] = pruned_ev.Muon.delta_r(pruned_ev.SelJet)
 

@@ -170,7 +170,15 @@ class NanoProcessor(processor.ProcessorABC):
                 "DeepJetB",
                 "DeepJetC",
             ]  # exclude b-tag SFs for btag inputs
-
+        if isRealData:
+            genflavor = ak.zeros_like(pruned_ev.SelJet.pt, axis=-1)
+        else:
+            genflavor = ak.values_astype(
+                pruned_ev.SelJet.hadronFlavour
+                + 1 * (pruned_ev.SelJet.partonFlavour == 0)
+                & (pruned_ev.SelJet.hadronFlavour == 0),
+                int,
+            )
         ####################
         #  Fill histogram  #
         ####################
@@ -193,15 +201,16 @@ class NanoProcessor(processor.ProcessorABC):
                     h.fill(
                         syst,
                         flatten(genflavor),
-                        flatten(sjets[histname]),
+                        flatten(pruned_ev.SelJet[histname]),
                         weight=flatten(
                             ak.broadcast_arrays(
-                                weights.partial_weight(exclude=exclude_btv), sjets["pt"]
+                                weights.partial_weight(exclude=exclude_btv),
+                                pruned_ev.SelJet["pt"],
                             )[0]
                         ),
                     )
                 elif "WP" in histname:
-                    jet = pruned_ev.Jet[:, 0]
+                    jet = pruned_ev.SelJet[:, 0]
 
                     for tagger in btag_wp_dict[self._campaign].keys():
                         if "bjet" in histname:
@@ -281,9 +290,12 @@ class NanoProcessor(processor.ProcessorABC):
                                     )
                 elif "jet" in histname:
                     for i in range(2):
-                        if histname.replace(f"jet{i}_", "") not in sjets.fields:
+                        if (
+                            histname.replace(f"jet{i}_", "")
+                            not in pruned_ev.SelJet.fields
+                        ):
                             continue
-                        jet = sjets[:, i]
+                        jet = pruned_ev.SelJet[:, i]
                         h.fill(
                             syst,
                             flatten(genflavor[:, i]),
@@ -292,10 +304,10 @@ class NanoProcessor(processor.ProcessorABC):
                         )
                 elif "btag" in histname:
                     for i in range(2):
-                        if histname.replace(f"_{i}", "") not in sjets.fields:
+                        if histname.replace(f"_{i}", "") not in pruned_ev.SelJet.fields:
                             continue
                         # print(histname.replace(f"_{i}", ""))
-                        jet = sjets[:, i]
+                        jet = pruned_ev.SelJet[:, i]
                         h.fill(
                             "noSF",
                             flav=flatten(genflavor[:, i]),

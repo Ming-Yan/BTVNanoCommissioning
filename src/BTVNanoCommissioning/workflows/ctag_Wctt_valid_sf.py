@@ -348,7 +348,10 @@ class NanoProcessor(processor.ProcessorABC):
         # Keep the structure of events and pruned the object size
         pruned_ev = events[event_level]
         pruned_ev["SelJet"] = sjets
-        pruned_ev["Muon"] = shmu
+        if self.selMod.endswith("M"):
+            pruned_ev["SelMuon"] = shmu
+        else:
+            pruned_ev["SelElectron"] = shmu
         pruned_ev["MuonJet"] = smuon_jet
         pruned_ev["SoftMuon"] = ssmu
         pruned_ev["OtherJets"] = sotherjets
@@ -372,6 +375,26 @@ class NanoProcessor(processor.ProcessorABC):
         pruned_ev["l1_ptratio"] = shmu.pt / smuon_jet.pt
         pruned_ev["MuonJet_beta"] = smuon_jet.pt / smuon_jet.E
         pruned_ev["MuonJet_muneuEF"] = smuon_jet.muEF + smuon_jet.neEmEF
+        if "hadronFlavour" in pruned_ev.SelJet.fields:
+            isRealData = False
+            genflavor = ak.values_astype(
+                pruned_ev.SelJet.hadronFlavour
+                + 1 * (pruned_ev.SelJet.partonFlavour == 0)
+                & (pruned_ev.SelJet.hadronFlavour == 0),
+                int,
+            )
+            if "MuonJet" in pruned_ev.fields:
+                smflav = ak.values_astype(
+                    1 * (pruned_ev.MuonJet.partonFlavour == 0)
+                    & (pruned_ev.MuonJet.hadronFlavour == 0)
+                    + pruned_ev.MuonJet.hadronFlavour,
+                    int,
+                )
+        else:
+            isRealData = True
+            genflavor = ak.ones_like(pruned_ev.SelJet.pt, dtype=int)
+            if "MuonJet" in pruned_ev.fields:
+                smflav = ak.ones_like(pruned_ev.MuonJet.pt, dtype=int)
         ####################
         # Weight & Geninfo #
         ####################
@@ -387,6 +410,12 @@ class NanoProcessor(processor.ProcessorABC):
             systematics = ["nominal"] + list(weights.variations)
         else:
             systematics = [shift_name]
+        exclude_btv = [
+            "DeepCSVC",
+            "DeepCSVB",
+            "DeepJetB",
+            "DeepJetC",
+        ]  # exclude b-tag SFs for btag inputs
         ####################
         #  Fill histogram  #
         ####################
@@ -558,11 +587,7 @@ class NanoProcessor(processor.ProcessorABC):
             output["w_mass"].fill(syst, osss, flatten(sw.mass), weight=weight)
             output["MET_pt"].fill(syst, osss, flatten(smet.pt), weight=weight)
             output["MET_phi"].fill(syst, osss, flatten(smet.phi), weight=weight)
-            output["npvs"].fill(
-                syst,
-                events[event_level].PV.npvs,
-                weight=weight,
-            )
+
         #######################
         #  Create root files  #
         #######################

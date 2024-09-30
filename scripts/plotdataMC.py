@@ -602,7 +602,7 @@ for index, discr in enumerate(var_set):
     name = "all"
     if args.split == "sample":
         name = name + "_sample"
-    hep.mpl_magic(ax=ax)
+    hep.mpl_magic(ax=ax, soft_fail=True)
     if args.log:
         print(
             "creating:",
@@ -611,7 +611,7 @@ for index, discr in enumerate(var_set):
         ax.set_yscale("log")
         name = "log"
         ax.set_ylim(bottom=0.1)
-        hep.mpl_magic(ax=ax)
+        hep.mpl_magic(ax=ax, soft_fail=True)
         fig.savefig(
             f"plot/{args.phase}_{args.ext}/unc_{discr}_inclusive{scale}_{name}.pdf"
         )

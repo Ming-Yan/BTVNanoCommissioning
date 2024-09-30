@@ -231,21 +231,19 @@ class NanoProcessor(processor.ProcessorABC):
         pruned_ev["SelJet"] = event_jet[event_level]
 
         if self.selMod == "dilepttM":
-            pruned_ev["Muon1"] = shlep[:, 0]
-            pruned_ev["Muon2"] = shlep[:, 1]
+            pruned_ev["SelMuon"] = shlep
             pruned_ev["hl"] = shlep[:, 0]
             pruned_ev["sl"] = shlep[:, 1]
             pruned_ev["dilep"] = shlep[:, 0] + shlep[:, 1]
         if self.selMod == "dilepttE":
-            pruned_ev["Electron1"] = shlep[:, 0]
-            pruned_ev["Electron2"] = shlep[:, 1]
+            pruned_ev["SelElectron"] = shlep
             pruned_ev["hl"] = shlep[:, 0]
             pruned_ev["sl"] = shlep[:, 1]
             pruned_ev["dilep"] = shlep[:, 0] + shlep[:, 1]
 
         pruned_ev["MuonJet"] = mu_jet[event_level][:, 0]
         pruned_ev["SoftMuon"] = soft_muon[event_level][:, 0]
-
+        pruned_ev["njet"] = ak.count(event_jet[event_level].pt, axis=1)
         pruned_ev["dilep", "pt"] = pruned_ev.dilep.pt
         pruned_ev["dilep", "eta"] = pruned_ev.dilep.eta
         pruned_ev["dilep", "phi"] = pruned_ev.dilep.phi

@@ -236,8 +236,8 @@ class NanoProcessor(processor.ProcessorABC):
         # Keep the structure of events and pruned the object size
         pruned_ev = events[event_level]
         pruned_ev["SelJet"] = event_jet[event_level]
-        pruned_ev["Muon"] = iso_mu[event_level][:, 0]
-        pruned_ev["Electron"] = iso_ele[event_level][:, 0]
+        pruned_ev["SelMuon"] = iso_mu[event_level][:, 0]
+        pruned_ev["SelElectron"] = iso_ele[event_level][:, 0]
         pruned_ev["MuonJet"] = mu_jet[event_level][:, 0]
         pruned_ev["SoftMuon"] = soft_muon[event_level][:, 0]
         pruned_ev["dilep"] = pruned_ev.Muon + pruned_ev.Electron
@@ -248,7 +248,7 @@ class NanoProcessor(processor.ProcessorABC):
         if "PFCands" in events.fields:
             pruned_ev["PFCands"] = PFCand_link(events, event_level, jetindx)
         # Add custom variables
-
+        pruned_ev["njet"] = ak.count(event_jet[event_level].pt, axis=1)
         pruned_ev["dr_mujet_softmu"] = pruned_ev.SoftMuon.delta_r(pruned_ev.MuonJet)
         pruned_ev["dr_mujet_lep1"] = pruned_ev.Muon.delta_r(pruned_ev.MuonJet)
         pruned_ev["dr_mujet_lep2"] = pruned_ev.Electron.delta_r(pruned_ev.MuonJet)
