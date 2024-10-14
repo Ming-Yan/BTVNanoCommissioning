@@ -116,7 +116,7 @@ def histogrammer(events, workflow):
             Hist.storage.Weight(),
         )
 
-    elif "ttdilep_sf" == workflow or "emctag_ttdilep_sf" == workflow:
+    elif "ttdilep_sf" == workflow:
         obj_list = ["mu", "ele"]
         for i in range(2):
             obj_list.append(f"jet{i}")
@@ -151,8 +151,11 @@ def histogrammer(events, workflow):
                 syst_axis, dxy_axis, Hist.storage.Weight()
             )
             _hist_dict[f"{i}_dz"] = Hist.Hist(syst_axis, dz_axis, Hist.storage.Weight())
+
     elif "ctag_ttdilep_sf" in workflow:
         obj_list = ["hl", "sl", "soft_l", "MET", "z", "lmujet"]
+        if "em" in workflow:
+            obj_list[:2] = ["ele", "mu"]
         _hist_dict["z_mass"] = Hist.Hist(
             syst_axis,
             Hist.axis.Regular(
@@ -170,7 +173,7 @@ def histogrammer(events, workflow):
         )
         # delta R between soft muon and hard muon
         _hist_dict["dr_lmusmu"] = Hist.Hist(syst_axis, dr_axis, Hist.storage.Weight())
-        for i in ["hl", "sl", "soft_l"]:
+        for i in obj_list[:3]:
             if i == "soft_l":
                 _hist_dict[f"soft_l_pfRelIso04_all"] = Hist.Hist(
                     syst_axis, flav_axis, softliso_axis, Hist.storage.Weight()
@@ -184,6 +187,10 @@ def histogrammer(events, workflow):
             else:
                 if "m" in workflow:
                     _hist_dict[f"{i}_pfRelIso04_all"] = Hist.Hist(
+                        syst_axis, iso_axis, Hist.storage.Weight()
+                    )
+                else:
+                    _hist_dict[f"{i}_pfRelIso03_all"] = Hist.Hist(
                         syst_axis, iso_axis, Hist.storage.Weight()
                     )
                 _hist_dict[f"{i}_dxy"] = Hist.Hist(
@@ -647,6 +654,7 @@ def histo_writter(pruned_ev, output, weights, systematics, isSyst, SF_map):
         genflavor = ak.zeros_like(pruned_ev.SelJet.pt, dtype=int)
         if "MuonJet" in pruned_ev.fields:
             smflav = ak.zeros_like(pruned_ev.MuonJet.pt, dtype=int)
+
     for syst in systematics:
         if isSyst == False and syst != "nominal":
             break
@@ -733,6 +741,7 @@ def histo_writter(pruned_ev, output, weights, systematics, isSyst, SF_map):
             elif (
                 "ele_" in histname
                 and histname.replace("ele_", "") in pruned_ev.SelElectron.fields
+                and "Plus" not in pruned_ev.fields
             ):
 
                 h.fill(
@@ -743,10 +752,11 @@ def histo_writter(pruned_ev, output, weights, systematics, isSyst, SF_map):
             elif (
                 "mu_" in histname
                 and histname.replace("mu_", "") in pruned_ev.SelMuon.fields
+                and "Plus" not in pruned_ev.fields
             ):
                 h.fill(
                     syst,
-                    flatten(pruned_ev.Muon[histname.replace("mu_", "")]),
+                    flatten(pruned_ev.SelMuon[histname.replace("mu_", "")]),
                     weight=weight,
                 )
             elif (
@@ -785,22 +795,22 @@ def histo_writter(pruned_ev, output, weights, systematics, isSyst, SF_map):
                     if f"jet{i}" not in histname:
                         continue
                     if nj == 1:
-                        sel_jet, genflavor = pruned_ev.SelJet, genflavor
+                        sel_jet, flav = pruned_ev.SelJet, genflavor
                     else:
-                        sel_jet, genflavor = pruned_ev.SelJet[:, i], genflavor[:, i]
+                        sel_jet, flav = pruned_ev.SelJet[:, i], genflavor[:, i]
 
                     if str(i) in histname:
                         if "dr_mujet" in histname:
                             h.fill(
                                 syst,
-                                flatten(genflavor),
-                                flatten(sel_jet.delta_r(pruned_ev.Muon)),
+                                flatten(flav),
+                                flatten(sel_jet.delta_r(pruned_ev.SelMuon)),
                                 weight=weight,
                             )
                         else:
                             h.fill(
                                 syst,
-                                flatten(genflavor),
+                                flatten(flav),
                                 flatten(sel_jet[histname.replace(f"jet{i}_", "")]),
                                 weight=weight,
                             )
@@ -818,7 +828,7 @@ def histo_writter(pruned_ev, output, weights, systematics, isSyst, SF_map):
                     flav, seljet = smflav, pruned_ev.MuonJet
                 else:
                     flav, seljet = genflavor, pruned_ev.SelJet
-
+                nj = 1 if type(seljet.pt[0]) == float else len(seljet.pt[0])
                 for i in range(nj):
                     if not histname.endswith(str(i)):
                         continue
@@ -864,6 +874,32 @@ def histo_writter(pruned_ev, output, weights, systematics, isSyst, SF_map):
             )
 
         if "MuonJet" in pruned_ev.fields:
+            if "hl" not in pruned_ev.fields:
+                pruned_ev["hl"] = ak.zip(
+                    {
+                        "pt": (
+                            pruned_ev.SelMuon.pt
+                            if pruned_ev.SelMuon.pt > pruned_ev.SelElectron.pt
+                            else pruned_ev.SelElectron.pt
+                        ),
+                        "eta": (
+                            pruned_ev.SelMuon.eta
+                            if pruned_ev.SelMuon.pt > pruned_ev.SelElectron.pt
+                            else pruned_ev.SelElectron.eta
+                        ),
+                        "phi": (
+                            pruned_ev.SelMuon.phi
+                            if pruned_ev.SelMuon.pt > pruned_ev.SelElectron.pt
+                            else pruned_ev.SelElectron.phi
+                        ),
+                        "energy": (
+                            pruned_ev.SelMuon.energy
+                            if pruned_ev.SelMuon.pt > pruned_ev.SelElectron.pt
+                            else pruned_ev.SelElectron.energy
+                        ),
+                    },
+                    with_name="PtEtaPhiECandidate",
+                )
             output["soft_l_ptratio"].fill(
                 syst,
                 flav=smflav,
@@ -876,14 +912,15 @@ def histo_writter(pruned_ev, output, weights, systematics, isSyst, SF_map):
                 dr=pruned_ev.MuonJet.delta_r(pruned_ev.SoftMuon),
                 weight=weight,
             )
+
             output["dr_lmujethmu"].fill(
                 syst,
                 flav=smflav,
-                dr=pruned_ev.MuonJet.delta_r(pruned_ev.Muon),
+                dr=pruned_ev.MuonJet.delta_r(pruned_ev.hl),
                 weight=weight,
             )
             output["dr_lmusmu"].fill(
-                syst, pruned_ev.SelMuon.delta_r(pruned_ev.SoftMuon), weight=weight
+                syst, pruned_ev.hl.delta_r(pruned_ev.SoftMuon), weight=weight
             )
         if "dilep" in pruned_ev.fields:
             output["z_pt"].fill(syst, flatten(pruned_ev.dilep.pt), weight=weight)

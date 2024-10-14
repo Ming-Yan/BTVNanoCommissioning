@@ -1,24 +1,24 @@
-name: Prompt dataMC Workflows
+name: Automation test
 
 on:
   push:
     branches: [ master ]
     paths:
-    - 'src/BTVNanoCommissioning/workflows/validation.py'
-    - 'src/BTVNanoCommissioning/helpers/update_branch.py'
-    - 'src/BTVNanoCommissioning/helpers/func.py'
-    - 'src/BTVNanoCommissioning/helpers/definitions.py'
-    - 'src/BTVNanoCommissioning/utils/*'
-    - '.github/workflows/validation.yml'
+    - 'scripts/plotdataMC.py'
+    - 'scripts/suball.py'
+    - 'scripts/dump_processed.py'
+    - 'scripts/fetch.py'
+    - 'src/BTVNanoCommissioning/utils/sample.py'
+    - '.github/workflows/auto.yml'
   pull_request_target:
     branches: [ master ]
     paths:
-    - 'src/BTVNanoCommissioning/workflows/validation.py'
-    - 'src/BTVNanoCommissioning/helpers/update_branch.py'
-    - 'src/BTVNanoCommissioning/helpers/func.py'
-    - 'src/BTVNanoCommissioning/helpers/definitions.py'
-    - 'src/BTVNanoCommissioning/utils/*'
-    - '.github/workflows/validation.yml'
+    - 'scripts/plotdataMC.py'
+    - 'scripts/suball.py'
+    - 'scripts/dump_processed.py'
+    - 'scripts/fetch.py'
+    - 'src/BTVNanoCommissioning/utils/sample.py'
+    - '.github/workflows/auto.yml'
   workflow_dispatch:
 
 jobs:
@@ -39,7 +39,6 @@ jobs:
     - uses: cvmfs-contrib/github-action-cvmfs@v4
       with:
         cvmfs_repositories: 'grid.cern.ch'
-
     - name: Set conda environment
       uses: conda-incubator/setup-miniconda@v2
       with:
@@ -83,15 +82,27 @@ jobs:
         openssl rand -out $HOME/.rnd  -hex 256
         printf "${{secrets.GRID_PASSWORD}}" | voms-proxy-init --voms cms  --debug --pwstdin -certdir $X509_CERT_DIR  -vomses $X509_VOMSES
         chmod 755 /usr/share/miniconda3/envs/btv_coffea/etc/grid-security/certificates
-    
+        
+   
     - name: Install Repo
       run: |
         pip install -e .
+    
 
-   
-    - name: btag dileptonic ttbar workflows 
+    - name: check autmoation scripts
       run: |
         string=$(git log -1 --pretty=format:'%s')
-        
-        python runner.py --workflow ttdilep_sf --json metadata/test_bta_run3.json --limit 1 --executor iterative --year 2023 --campaign Summer23 $opts
+        if [[ $string == *"ci:skip array"* ]]; then
+        opts=$(echo "$opts" | sed 's/--isArray //g')
+        fi
+        if [[ $string == *"ci:skip syst"* ]]; then
+            opts=$(echo "$opts" | sed 's/--isSyst all//g')
+        elif [[ $string == *"ci:JERC_split"* ]]; then
+            opts=$(echo "$opts" | sed 's/--isSyst all/--isSyst JERC_split/g')
+        elif [[ $string == *"ci:weight_only"* ]]; then
+            opts=$(echo "$opts" | sed 's/--isSyst all/--isSyst weight_only/g') 
+        fi
+        python scripts/suball.py --scheme default_comissioning --campaign Summer23  --DAS_campaign "*Run2023D*Sep2023*,*Run3Summer23BPixNanoAODv12-130X*" --year 2023 --executor iterative $opts
+    
 
+    

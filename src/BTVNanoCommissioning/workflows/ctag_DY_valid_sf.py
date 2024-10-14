@@ -232,14 +232,14 @@ class NanoProcessor(processor.ProcessorABC):
             pruned_ev["MuonMinus"] = snegmu
             pruned_ev["posl"] = sposmu
             pruned_ev["negl"] = snegmu
-            pruned_ev["SelMuon"] = ak.concatenate([sposmu, snegmu], axis=1)
+            pruned_ev["SelMuon"] = smu
             kinOnly = ["SelMuon", "MuonPlus", "MuonMinus"]
         else:
             pruned_ev["ElectronPlus"] = sposmu
             pruned_ev["ElectronMinus"] = snegmu
             pruned_ev["posl"] = sposmu
             pruned_ev["negl"] = snegmu
-            pruned_ev["SelElectron"] = ak.concatenate([sposmu, snegmu], axis=1)
+            pruned_ev["SelElectron"] = smu
             kinOnly = ["SelElectron", "ElectronPlus", "ElectronMinus"]
         pruned_ev["dilep"] = sz
         pruned_ev["dilep", "pt"] = pruned_ev.dilep.pt
