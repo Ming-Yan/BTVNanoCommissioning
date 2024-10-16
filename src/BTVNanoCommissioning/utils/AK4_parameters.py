@@ -91,14 +91,31 @@ correction_config = {
     "Summer23": {
         "lumiMask": "Cert_Collisions2023_366442_370790_Golden.json",
         "PU": "puwei_Summer23.histo.root",
-        # "JME": {
-        #     "MC": "Summer23Prompt23_V1",
-        #     "Run2023C-22Sep2023_v1": "Summer23Prompt23_RunCv123_V1",
-        #     "Run2023C-22Sep2023_v2": "Summer23Prompt23_RunCv123_V1",
-        #     "Run2023C-22Sep2023_v3": "Summer23Prompt23_RunCv123_V1",
-        #     "Run2023C-22Sep2023_v4": "Summer23Prompt23_RunCv4_V1",
-        # },
-        "JME": "jec_compiled.pkl.gz",
+        "JME": {
+            "name": "V1_AK4PFPuppi",
+            "MC": [
+                "Summer23Prompt23_V1_MC_L1FastJet_AK4PFPuppi",
+                "Summer23Prompt23_V1_MC_L2Relative_AK4PFPuppi",
+                "Summer23Prompt23_V1_MC_L2Residual_AK4PFPuppi",
+                "Summer23Prompt23_V1_MC_L3Absolute_AK4PFPuppi",
+                "Summer23Prompt23_V1_MC_UncertaintySources_AK4PFPuppi",
+                "Summer23Prompt23_V1_MC_Uncertainty_AK4PFPuppi",
+                "Summer23Prompt23_JRV1_MC_SF_AK4PFPuppi",
+                "Summer23Prompt23_JRV1_MC_PtResolution_AK4PFPuppi",
+            ],
+            "dataCv123": [
+                "Summer23Prompt23_RunCv123_V1_DATA_L1FastJet_AK4PFPuppi",
+                "Summer23Prompt23_RunCv123_V1_DATA_L2Relative_AK4PFPuppi",
+                "Summer23Prompt23_RunCv123_V1_DATA_L3Absolute_AK4PFPuppi",
+                "Summer23Prompt23_RunCv123_V1_DATA_L2L3Residual_AK4PFPuppi",
+            ],
+            "dataCv4": [
+                "Summer23Prompt23_RunCv4_V1_DATA_L1FastJet_AK4PFPuppi",
+                "Summer23Prompt23_RunCv4_V1_DATA_L2Relative_AK4PFPuppi",
+                "Summer23Prompt23_RunCv4_V1_DATA_L3Absolute_AK4PFPuppi",
+                "Summer23Prompt23_RunCv4_V1_DATA_L2L3Residual_AK4PFPuppi",
+            ],
+        },
         "jetveto": {"Run2023BC jetvetomap_all": "Summer23Prompt23_RunC_v1.histo.root"},
         "JPCalib": {
             "Run2023C-22Sep2023_v1": "calibeHistoWrite_Data2023C-22Sep2023_v1.root",
@@ -125,7 +142,5 @@ correction_config = {
             "MC": "calibeHistoWrite_MC2023_Summer23BPix.root",
         },
     },
-    "CAMPAIGN_prompt_dataMC": {
-        "lumiMask": "Cert_Collisions2024_378981_381594_Golden.json"
-    },
+    "prompt_dataMC": {"lumiMask": "$PROMPT_DATAMC"},
 }

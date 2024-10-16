@@ -39,7 +39,7 @@ class NanoProcessor(processor.ProcessorABC):
         self._campaign = campaign
         self.chunksize = chunksize
 
-        self.SF_map = load_SF(self._campaign)
+        self.SF_map = load_SF(self._year, self._campaign)
         # addPFMuons: if true, include the TrkInc and PFMuon collections, used by QCD based SF methods
         # addAllTracks: if true, include the Track collection used for JP calibration;
         #               when running on data, requires events passing HLT_PFJet80

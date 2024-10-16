@@ -8,7 +8,7 @@ on:
     - 'src/BTVNanoCommissioning/helpers/update_branch.py'
     - 'src/BTVNanoCommissioning/helpers/func.py'
     - 'src/BTVNanoCommissioning/helpers/definitions.py'
-    - 'src/BTVNanoCommissioning/utils/*'
+    - 'src/BTVNanoCommissioning/utils/'
     - '.github/workflows/ctag_Wc_workflow.yml'
     
   pull_request_target:
@@ -18,7 +18,7 @@ on:
     - 'src/BTVNanoCommissioning/helpers/update_branch.py'
     - 'src/BTVNanoCommissioning/helpers/func.py'
     - 'src/BTVNanoCommissioning/helpers/definitions.py'
-    - 'src/BTVNanoCommissioning/utils/*'
+    - 'src/BTVNanoCommissioning/utils/'
     - '.github/workflows/ctag_Wc_workflow.yml'
    
   workflow_dispatch:

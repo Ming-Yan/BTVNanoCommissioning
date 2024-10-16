@@ -1,29 +1,26 @@
 import importlib.resources
-import gzip
-import pickle
-import contextlib
-import cloudpickle
-import os
-import re
-import copy
+import cloudpickle, gzip, contextlib
+import copy, os, re
+
 import numpy as np
 import awkward as ak
 import uproot
 from coffea.lookup_tools import extractor, txt_converters, rochester_lookup
-
 from coffea.lumi_tools import LumiMask
-from coffea.btag_tools import BTagScaleFactor
-import correctionlib
-from BTVNanoCommissioning.helpers.func import update
-from BTVNanoCommissioning.helpers.cTagSFReader import getSF
-from coffea.analysis_tools import Weights
 
-from BTVNanoCommissioning.utils.AK4_parameters import correction_config as config
-from BTVNanoCommissioning.utils.compile_jec import jec_name_map
 from coffea.jetmet_tools.CorrectedMETFactory import corrected_polar_met
 
+from coffea.analysis_tools import Weights
 
-def load_SF(campaign, syst=False):
+from coffea.btag_tools import BTagScaleFactor
+import correctionlib
+from BTVNanoCommissioning.helpers.func import update, _compile_jec_, _load_jmefactory
+from BTVNanoCommissioning.helpers.cTagSFReader import getSF
+
+from BTVNanoCommissioning.utils.AK4_parameters import correction_config as config
+
+
+def load_SF(year, campaign, syst=False):
     correct_map = {"campaign": campaign}
     for SF in config[campaign].keys():
         if SF == "lumiMask":
@@ -32,10 +29,10 @@ def load_SF(campaign, syst=False):
         if SF == "PU":
             ## Check whether files in jsonpog-integration exist
             if os.path.exists(
-                f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/LUM/{campaign}"
+                f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/LUM/{year}_{campaign}"
             ):
                 correct_map["PU"] = correctionlib.CorrectionSet.from_file(
-                    f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/LUM/{campaign}/puWeights.json.gz"
+                    f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/LUM/{year}_{campaign}/puWeights.json.gz"
                 )
             ## Otherwise custom files
             else:
@@ -65,30 +62,31 @@ def load_SF(campaign, syst=False):
             ].endswith(".json.gz"):
                 correct_map["btag"] = correctionlib.CorrectionSet.from_file(
                     importlib.resources.path(
-                        f"BTVNanoCommissioning.data.BTV.{campaign}", filename
+                        f"BTVNanoCommissioning.data.BTV.{year}_{campaign}", filename
                     )
                 )
             if "ctag" in config[campaign]["BTV"].keys() and config[campaign]["BTV"][
-                "btag"
+                "ctag"
             ].endswith(".json.gz"):
                 correct_map["btag"] = correctionlib.CorrectionSet.from_file(
                     importlib.resources.path(
-                        f"BTVNanoCommissioning.data.BTV.{campaign}", filename
+                        f"BTVNanoCommissioning.data.BTV.{year}_{campaign}", filename
                     )
                 )
             if os.path.exists(
-                f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/{campaign}"
+                f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/{year}_{campaign}"
             ):
                 correct_map["btag"] = correctionlib.CorrectionSet.from_file(
-                    f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/{campaign}/btagging.json.gz"
+                    f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/{year}_{campaign}/btagging.json.gz"
                 )
                 correct_map["ctag"] = correctionlib.CorrectionSet.from_file(
-                    f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/{campaign}/ctagging.json.gz"
+                    f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/{year}_{campaign}/ctagging.json.gz"
                 )
             else:
                 correct_map["btag"] = {}
                 correct_map["ctag"] = {}
-                _btag_path = f"BTVNanoCommissioning.data.BTV.{campaign}"
+                correct_map["btv_cfg"] = config[campaign]["BTV"]
+                _btag_path = f"BTVNanoCommissioning.data.BTV.{year}_{campaign}"
                 for tagger in config[campaign]["BTV"]:
                     with importlib.resources.path(
                         _btag_path, config[campaign]["BTV"][tagger]
@@ -115,6 +113,7 @@ def load_SF(campaign, syst=False):
                                     BTagScaleFactor.RESHAPE,
                                     methods="iterativefit,iterativefit,iterativefit",
                                 )
+
         ## lepton SFs
         elif SF == "LSF":
             correct_map["MUO_cfg"] = {
@@ -129,30 +128,30 @@ def load_SF(campaign, syst=False):
             }
             ## Muon
             if os.path.exists(
-                f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/{campaign}"
+                f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/{year}_{campaign}"
             ):
                 correct_map["MUO"] = correctionlib.CorrectionSet.from_file(
-                    f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/{campaign}/muon_Z.json.gz"
+                    f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/{year}_{campaign}/muon_Z.json.gz"
                 )
             if os.path.exists(
-                f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/EGM/{campaign}"
+                f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/EGM/{year}_{campaign}"
             ):
                 correct_map["EGM"] = correctionlib.CorrectionSet.from_file(
-                    f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/EGM/{campaign}/electron.json.gz"
+                    f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/EGM/{year}_{campaign}/electron.json.gz"
                 )
             if any(
                 np.char.find(np.array(list(config[campaign]["LSF"].keys())), "mu_json")
                 != -1
             ):
                 correct_map["MUO"] = correctionlib.CorrectionSet.from_file(
-                    f"src/BTVNanoCommissioning/data/LSF/{campaign}/{config[campaign]['LSF']['mu_json']}"
+                    f"src/BTVNanoCommissioning/data/LSF/{year}_{campaign}/{config[campaign]['LSF']['mu_json']}"
                 )
             if any(
                 np.char.find(np.array(list(config[campaign]["LSF"].keys())), "ele_json")
                 != -1
             ):
                 correct_map["EGM"] = correctionlib.CorrectionSet.from_file(
-                    f"src/BTVNanoCommissioning/data/LSF/{campaign}/{config[campaign]['LSF']['ele_json']}"
+                    f"src/BTVNanoCommissioning/data/LSF/{year}_{campaign}/{config[campaign]['LSF']['ele_json']}"
                 )
 
             ### Check if any custom corrections needed
@@ -255,15 +254,31 @@ def load_SF(campaign, syst=False):
                 full_path, loaduncs=True
             )
             correct_map["roccor"] = rochester_lookup.rochester_lookup(rochester_data)
+
+        ## JME corrections
         elif SF == "JME":
-            year = int(re.search(r"\d+", campaign).group())
-            if type(config[campaign]["JME"]) == str:
-                correct_map["JME"] = load_jmefactory(year, campaign)
+            if "name" in config[campaign]["JME"].keys():
+
+                if not os.path.exists(
+                    f"src/BTVNanoCommissioning/data/JME/{year}_{campaign}/jec_compiled_{config[campaign]['JME']['name']}.pkl.gz"
+                ):
+                    _compile_jec_(
+                        year,
+                        campaign,
+                        config[campaign]["JME"],
+                        f"jec_compiled_{config[campaign]['JME']['name']}",
+                    )
+
+                correct_map["JME"] = _load_jmefactory(
+                    year,
+                    campaign,
+                    f"jec_compiled_{config[campaign]['JME']['name']}.pkl.gz",
+                )
             elif os.path.exists(
-                f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/20{year}_{campaign}/jet_jerc.json.gz"
+                f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/{year}_{campaign}/jet_jerc.json.gz"
             ):
                 correct_map["JME"] = correctionlib.CorrectionSet.from_file(
-                    f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/20{year}_{campaign}/jet_jerc.json.gz"
+                    f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/{year}_{campaign}/jet_jerc.json.gz"
                 )
                 correct_map["JME_cfg"] = config[campaign]["JME"]
                 for dataset in correct_map["JME_cfg"].keys():
@@ -279,23 +294,22 @@ def load_SF(campaign, syst=False):
                         raise (
                             f"{dataset} has no JEC map : {correct_map['JME_cfg'][dataset]} available"
                         )
-
         elif SF == "JMAR":
             if os.path.exists(
-                f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/{campaign}/jmar.json.gz"
+                f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/{year}_{campaign}/jmar.json.gz"
             ):
                 correct_map["JMAR_cfg"] = {
                     j: f for j, f in config[campaign]["JMAR"].items()
                 }
                 correct_map["JMAR"] = correctionlib.CorrectionSet.from_file(
-                    f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/{campaign}/jmar.json.gz"
+                    f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME/{year}_{campaign}/jmar.json.gz"
                 )
         elif SF == "jetveto":
             ext = extractor()
             with contextlib.ExitStack() as stack:
                 ext.add_weight_sets(
                     [
-                        f"{run} {stack.enter_context(importlib.resources.path(f'BTVNanoCommissioning.data.JME.{campaign}',file))}"
+                        f"{run} {stack.enter_context(importlib.resources.path(f'BTVNanoCommissioning.data.JME.{year}_{campaign}',file))}"
                         for run, file in config[campaign]["jetveto"].items()
                     ]
                 )
@@ -350,26 +364,8 @@ def common_shifts(self, events):
     return shifts
 
 
-def jetveto(jets, correct_map):
-    return ak.where(
-        correct_map["jetveto"][list(correct_map["jetveto"].keys())[0]](
-            jets.phi, jets.eta
-        )
-        > 0,
-        ak.ones_like(jets.eta),
-        ak.zeros_like(jets.eta),
-    )
-
-
 ##JEC
 # FIXME: would be nicer if we can move to correctionlib in the future together with factory and workable
-def load_jmefactory(year, campaign):
-    _jet_path = f"BTVNanoCommissioning.data.JME.{year}_{campaign}"
-    with importlib.resources.path(_jet_path, config[campaign]["JME"]) as filename:
-        with gzip.open(filename) as fin:
-            jmestuff = cloudpickle.load(fin)
-
-    return jmestuff
 
 
 def add_jec_variables(jets, event_rho):
@@ -383,6 +379,18 @@ def add_jec_variables(jets, event_rho):
         jets["pt_gen"] = ak.zeros_like(jets.pt)
     jets["event_rho"] = ak.broadcast_arrays(event_rho, jets.pt)[0]
     return jets
+
+
+## Jet Veto
+def jetveto(jets, correct_map):
+    return ak.where(
+        correct_map["jetveto"][list(correct_map["jetveto"].keys())[0]](
+            jets.phi, jets.eta
+        )
+        > 0,
+        ak.ones_like(jets.eta),
+        ak.zeros_like(jets.eta),
+    )
 
 
 ## JERC
@@ -537,7 +545,7 @@ def JME_shifts(
                     raise NameError
                 jecname = "data" + jecname
             else:
-                jecname = "mc"
+                jecname = "MC"
 
             jets = correct_map["JME"]["jet_factory"][jecname].build(
                 add_jec_variables(events.Jet, events.fixedGridRhoFastjetAll),
@@ -720,8 +728,16 @@ def Roccor_shifts(shifts, correct_map, events, isRealData, systematic=False):
     return shifts
 
 
-## PU weight
 def puwei(nPU, correct_map, weights, syst=False):
+    """
+    Return pileup weight
+    Parameters
+    ----------
+    nPU: ak.Array
+    correct_map : dict
+    weights : coffea.analysis_tool.weights
+    syst: "split", "weight_only"
+    """
     if "correctionlib" in str(type(correct_map["PU"])):
         if syst:
             return weights.add(
@@ -1734,9 +1750,9 @@ def weight_manager(pruned_ev, SF_map, isSyst):
                 weights,
                 syst_wei,
             )
-        if "MUO" in SF_map.keys() and "Muon" in pruned_ev.fields:
+        if "MUO" in SF_map.keys() and "SelMuon" in pruned_ev.fields:
             muSFs(pruned_ev.Muon, SF_map, weights, syst_wei, False)
-        if "EGM" in SF_map.keys() and "Electron" in pruned_ev.fields:
+        if "EGM" in SF_map.keys() and "SelElectron" in pruned_ev.fields:
             eleSFs(pruned_ev.Electron, SF_map, weights, syst_wei, False)
         if "BTV" in SF_map.keys() and "SelJet" in pruned_ev.fields:
             btagSFs(pruned_ev.SelJet, SF_map, weights, "DeepJetC", syst_wei)

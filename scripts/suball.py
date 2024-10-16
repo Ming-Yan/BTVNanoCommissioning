@@ -1,6 +1,7 @@
 import os, argparse
 from BTVNanoCommissioning.workflows import workflows
 from BTVNanoCommissioning.utils.sample import predefined_sample
+from BTVNanoCommissioning.utils.AK4_parameters import correction_config
 import os, sys, inspect
 
 current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -8,6 +9,42 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 
 from runner import config_parser, scaleout_parser, debug_parser
+
+
+# Get lumi
+def get_lumi_from_web(year):
+    import requests
+    import re
+
+    year = str(year)
+    # Define the URL of the directory
+    url = (
+        f"https://cms-service-dqmdc.web.cern.ch/CAF/certification/Collisions{year[2:]}/"
+    )
+
+    # Send a request to fetch the HTML content of the webpage
+    response = requests.get(url)
+    html_content = response.text
+
+    # Use regex to find all href links that contain 'Golden.json' but do not contain 'era'
+    # Ensures it only captures the URL part within href="..." and not any other content.
+    goldenjson_files = re.findall(r'href="([^"]*Golden\.json[^"]*)"', html_content)
+
+    # Filter out any matches that contain 'era' in the filename
+    goldenjson_files = [file for file in goldenjson_files if "era" not in file]
+
+    # If there are any such files, find the latest one (assuming the files are sorted lexicographically)
+    if goldenjson_files:
+        latest_file = sorted(goldenjson_files)[
+            -1
+        ]  # Assuming lexicographical sorting works for the dates
+        os.system(f"wget {url}/{latest_file}")
+        os.system(f"mv {latest_file} src/BTVNanoCommissioning/data/lumiMasks/.")
+        return latest_file
+    else:
+        raise (
+            f"No files for Year{year} containing 'Golden.json' (excluding 'era') were found."
+        )
 
 
 ### Manage workflow in one script
@@ -26,7 +63,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-sc",
         "--scheme",
-        default="CAMPAIGN_prompt_dataMC",
+        default="Validation",
         choices=list(workflows.keys()) + ["Validation", "SF", "default_comissioning"],
         help="Choose the function for dump luminosity(`lumi`)/failed files(`failed`) into json",
     )
@@ -42,6 +79,11 @@ if __name__ == "__main__":
         "--local",
         action="store_true",
         help="not transfered to https://btvweb.web.cern.ch/Commissioning/dataMC/",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Run local debug test with small set of dataset with iterative executor",
     )
 
     args = parser.parse_args()
@@ -61,11 +103,31 @@ if __name__ == "__main__":
             # "QCD_mu_sf"
         ],
     }
+    if args.debug:
+        args.local = True
     if args.scheme in workflows.keys():
         workflow_group["test"] = [args.scheme]
         args.scheme = "test"
+    # Check lumiMask exists and replace the Validation
+    input_lumi_json = correction_config[args.campaign]["lumiMask"]
+    if args.campaign != "prompt_dataMC" and not os.path.exists(
+        f"src/BTVNanoCommissioning/data/lumiMasks/{input_lumi_json}"
+    ):
+        raise f"src/BTVNanoCommissioning/data/lumiMasks/{input_lumi_json} not exist"
+
+    if (
+        args.campaign == "prompt_dataMC"
+        and correction_config[args.campaign]["lumiMask"] == "$PROMPT_DATAMC"
+    ):
+        input_lumi_json = get_lumi_from_web(args.year)
+        os.system(
+            f"sed -i 's/$PROMPT_DATAMC/{input_lumi_json}/g' src/BTVNanoCommissioning/utils/AK4_parameters.py"
+        )
+        print(f"======>{input_lumi_json} is used for {args.year}")
 
     for wf in workflow_group[args.scheme]:
+        if args.debug:
+            print(f"Start running {wf} workflow!!!")
         overwrite = "--overwrite" if args.overwrite else ""
         ## creating dataset
         if (
@@ -100,6 +162,7 @@ if __name__ == "__main__":
                         "DAS_campaign",
                         "version",
                         "local",
+                        "debug",
                     ]:
                         continue
                     if key in [
@@ -112,12 +175,24 @@ if __name__ == "__main__":
                         if value == True:
                             runner_config += f" --{key}"
                     elif value is not None:
-                        if "Validation" == args.scheme and types == "MC":
+                        if (
+                            "Validation" == args.scheme
+                            and types == "MC"
+                            and "limit" not in key
+                        ):
                             runner_config += " --limit 50"
+                        elif args.debug:
+                            runner_config += " --limit 1 --executor iterative"
                         else:
                             runner_config += f" --{key}={value}"
                 runner_config = runner_config_required + runner_config
                 print(runner_config)
+                with open(
+                    f"config_{args.year}_{args.campaign}_{args.scheme}_{args.version}.txt",
+                    "w",
+                ) as config_list:
+                    config_list.write(runner_config)
+
                 os.system(runner_config)
 
         # Get luminosity
@@ -174,3 +249,8 @@ if __name__ == "__main__":
                 raise Exception(
                     f"No input coffea hists_{wf}_data_{args.campaign}_{args.year}_{wf}/hists_{wf}_data_{args.campaign}_{args.year}_{wf}.coffea"
                 )
+    # revert prompt_dataMC lumimask
+    if args.campaign == "prompt_dataMC":
+        os.system(
+            f"sed -i 's/{input_lumi_json}/$PROMPT_DATAMC/g' src/BTVNanoCommissioning/utils/AK4_parameters.py"
+        )

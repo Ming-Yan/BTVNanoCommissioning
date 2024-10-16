@@ -77,7 +77,7 @@ def missing_branch(events):
                 "btagDeepFlavCvB": jets.btagDeepFlavCvB,
             },
         )
-    if not hasattr(events.Jet, "btagPNetCvNotB"):
+    if not hasattr(events.Jet, "btagPNetCvNotB") and hasattr(events.Jet, "btagPNetB"):
         jets = events.Jet
         jets["btagPNetCvNotB"] = (
             jets.btagPNetCvB * jets.btagPNetB / (1.0 - jets.btagPNetB) ** 2
