@@ -125,7 +125,5 @@ correction_config = {
             "MC": "calibeHistoWrite_MC2023_Summer23BPix.root",
         },
     },
-    "CAMPAIGN_prompt_dataMC": {
-        "lumiMask": "Cert_Collisions2024_378981_381594_Golden.json"
-    },
+    "prompt_dataMC": {"lumiMask": "$PROMPT_DATAMC"},
 }
