@@ -4,4 +4,9 @@ API
 .. autosummary::
    :toctree: generated
 
-   lumache
+   BTVNanoCommissioning.utils.correction
+   .. :toctree: ../src/BTVNanoCommissioning/utils/
+   .. :toctree: ../scripts/
+   
+
+   
