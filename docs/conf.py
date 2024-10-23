@@ -10,28 +10,52 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os, sys; 
-sys.path.insert(0, os.path.abspath('../src'))
+import os, sys
 
+sys.path.insert(0, os.path.abspath("../src"))
 
 
 # -- Project information -----------------------------------------------------
 
-project = "Basic Sphinx Example Project"
-copyright = "2022, Read the Docs core team"
-author = "Read the Docs core team"
+project = "BTVNanocommissioning"
+copyright = "2024, BTV-POG-CMS"
+author = "By BTV CMS"
 
 
 # -- General configuration ---------------------------------------------------
 # -- General configuration
 
 extensions = [
+    "myst_parser",
+    "sphinx_copybutton",
     "sphinx.ext.duration",
     "sphinx.ext.doctest",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.imgmath",
+    "sphinx.ext.todo",
 ]
+
+myst_enable_extensions = [
+    "amsmath",
+    "attrs_inline",
+    "colon_fence",
+    "deflist",
+    "dollarmath",
+    "fieldlist",
+    "html_admonition",
+    "html_image",
+    #    "linkify",
+    "replacements",
+    "smartquotes",
+    "strikethrough",
+    "substitution",
+    "tasklist",
+    # "sphinx_tippy"
+]
+
 
 intersphinx_mapping = {
     "rtd": ("https://docs.readthedocs.io/en/stable/", None),
@@ -44,6 +68,8 @@ templates_path = ["_templates"]
 
 # -- Options for EPUB output
 epub_show_urls = "footnote"
+source_suffix = [".rst", ".md"]
+copybutton_exclude = ".linenos, .gp"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
