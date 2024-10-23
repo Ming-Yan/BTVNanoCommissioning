@@ -45,8 +45,10 @@ jobs:
         git fetch origin pull/${{ github.event.pull_request.number }}/head:MR
         git checkout -b ATTEMPT_MERGE
         git merge MR
+        git branch -v
+        git diff origin master
         
-    
+   
     - uses: cvmfs-contrib/github-action-cvmfs@v4
       with:
         cvmfs_repositories: 'grid.cern.ch'
@@ -98,7 +100,12 @@ jobs:
     - name: Install Repo
       run: |
         pip install -e .
-    
+
+    - name: Check git
+      run: |
+        git branch -v
+        git diff origin master
+        
 
     - name: QCD workflows with correctionlib
       run: |
