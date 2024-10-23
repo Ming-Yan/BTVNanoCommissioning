@@ -46,6 +46,12 @@ jobs:
         git checkout ${{ github.event.pull_request.base.ref }}
         git merge --no-ff ${{ github.event.pull_request.head.sha }}
     
+    - name: Check git
+      run: |
+        git branch -v
+        git status
+         
+
     - uses: cvmfs-contrib/github-action-cvmfs@v4
       with:
         cvmfs_repositories: 'grid.cern.ch'
