@@ -39,24 +39,23 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+
+
     - name: Merge PR locally
       if: github.event_name == 'pull_request_target'
+      id: merge
+      continue-on-error: true
+
       run: |
         git fetch origin pull/${{ github.event.pull_request.number }}/head:MR
         git checkout -b ATTEMPT_MERGE
         git merge MR
-        git branch -v
-        git diff origin master
-        
+
+        git branch -vv 
+        git remote -v 
+        git diff master
 
     
-    - name: Check git
-      run: |
-        git branch -v
-        git status
-         
-
-
     - uses: cvmfs-contrib/github-action-cvmfs@v4
       with:
         cvmfs_repositories: 'grid.cern.ch'
@@ -111,8 +110,9 @@ jobs:
 
     - name: Check git
       run: |
-        git branch -v
-        git diff origin master
+        git branch -vv 
+        git remote -v 
+        git diff master
         
 
     - name: QCD workflows with correctionlib
