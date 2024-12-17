@@ -9,7 +9,7 @@ import awkward as ak
 from BTVNanoCommissioning.helpers.func import flatten
 
 
-def histogrammer(events, workflow, campaign="Summer22"):
+def histogrammer(events, workflow, year="2022", campaign="Summer22"):
     _hist_dict = {}
     ## Common variables
     flav_axis = Hist.axis.IntCategory([0, 1, 4, 5, 6], name="flav", label="Genflavour")
@@ -454,8 +454,8 @@ def histogrammer(events, workflow, campaign="Summer22"):
         for obj in obj_list:
             # mujet pt passing tagger WPs
             if "mujet" in obj:
-                for tagger in btag_wp_dict[campaign].keys():
-                    for wp in btag_wp_dict[campaign][tagger]["c"].keys():
+                for tagger in btag_wp_dict[year + "_" + campaign].keys():
+                    for wp in btag_wp_dict[year + "_" + campaign][tagger]["c"].keys():
                         if not "No" in wp:
                             _hist_dict[f"{obj}_pt_{tagger}{wp}"] = Hist.Hist(
                                 syst_axis,
