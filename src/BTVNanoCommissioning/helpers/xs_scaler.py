@@ -3,7 +3,6 @@ import hist
 from coffea.processor import accumulate
 import os
 from BTVNanoCommissioning.helpers.xsection import xsection
-
 """
 Scale histograms to corresponding cross-section. Merge mutiple `.coffea` and collate the MC samples into sub-class in this function.
 """

@@ -20,6 +20,8 @@ from BTVNanoCommissioning.helpers.cTagSFReader import getSF
 from BTVNanoCommissioning.utils.AK4_parameters import correction_config as config
 
 
+
+
 def load_SF(year, campaign, syst=False):
     """
     Load scale factors (SF) for a given year and campaign.

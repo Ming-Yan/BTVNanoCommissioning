@@ -137,6 +137,25 @@ if self.isArray:
 
 ### 4. Setup CI pipeline
 
+The actions are checking the changes would break the framework. The actions are collected in `.github/workflow`
+You can simply include a workflow by adding the entries with name
+
+```yaml
+- name:  semileptonic + c ttbar workflows with correctionlib
+      run: |
+        string=$(git log -1 --pretty=format:'%s')
+        if [[ $string == *"ci:skip array"* ]]; then
+        opts=$(echo "$opts" | sed 's/--isArray //g')
+        fi
+        if [[ $string == *"ci:skip syst"* ]]; then
+            opts=$(echo "$opts" | sed 's/--isSyst all//g')
+        elif [[ $string == *"ci:JERC_split"* ]]; then
+            opts=$(echo "$opts" | sed 's/--isSyst all/--isSyst JERC_split/g')
+        elif [[ $string == *"ci:weight_only"* ]]; then
+            opts=$(echo "$opts" | sed 's/--isSyst all/--isSyst weight_only/g') 
+        fi
+        python runner.py --workflow c_ttsemilep_sf --json metadata/test_bta_run3.json --limit 1 --executor iterative --campaign Summer23 --year 2023  $opts
+```
 
 Special commit head messages could run different commands in actions (add the flag in front of your commit)
 The default configureation is doing 
