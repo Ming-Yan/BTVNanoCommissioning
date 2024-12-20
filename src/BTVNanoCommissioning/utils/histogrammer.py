@@ -11,7 +11,6 @@ from BTVNanoCommissioning.helpers.func import flatten
 def histogrammer(events, workflow):
     """
     Most of workflows require same set of variables. Collect axis, histograms definition in single file
-
     To contribute: Add additional axis, histogram using [hist](https://hist.readthedocs.io/en/latest/) for dedicated workflow into the `_hist_dict`. For the new histogram, please have the `syst_axis` as first axis, and `Weight` as last axis.
 
     Parameters:

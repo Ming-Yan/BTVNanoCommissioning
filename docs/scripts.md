@@ -12,7 +12,6 @@ Use `fetch.py` in folder `scripts/` to obtain your samples json files. You can c
 The `--whitelist_sites, --blacklist_sites` are considered for fetch dataset if multiple sites are available
 
 
-
  
 
 

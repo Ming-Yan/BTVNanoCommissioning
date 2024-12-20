@@ -41,8 +41,9 @@ def load_SF(year, campaign, syst=False):
     ValueError: If the file content is not in the expected format.
     KeyError: If the specified campaign or year is not found in the configuration.
     """
-
+    # read the configuration file to get the correct SFs
     correct_map = {"campaign": campaign}
+
     for SF in config[campaign].keys():
         if SF == "lumiMask":
             continue

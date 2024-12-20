@@ -8,7 +8,7 @@ The BTV tutorial for coffea part is `notebooks/BTV_commissiong_tutorial-coffea.i
 
 Use the `example.py` as template to develope new workflow.
 
-### 0. Add new workflow info to `__init__.py` in `workflows` directory.
+### 0. Add new workflow info to `workflows/__init__.py` 
 
 
 ```python
@@ -45,7 +45,8 @@ _hist_dict["mujet_pt"] = Hist.Hist(
 
 The kinematic variables/workflow specific variables are defined first, then it takes the common collections of input variables from the common defintion. 
 In case you want to add common variables use for all the workflow, you can go to [`helper/definition.py`](#add-new-common-variables)
-###  2. Selections: Implemented selections on events
+
+###  2. Selections: Implemented selections on events (`workflow/`)
 
 Create `boolean` arrays along event axis. Also check whether some common selctions already in `utils/selection.py`
 
@@ -135,8 +136,27 @@ if self.isArray:
 </details>
 
 
-### 4. Setup CI pipeline
+### 4. Setup CI pipeline `.github/workflow`
 
+The actions are checking the changes would break the framework. The actions are collected in `.github/workflow`
+You can simply include a workflow by adding the entries with name
+
+```yaml
+- name:  semileptonic + c ttbar workflows with correctionlib
+      run: |
+        string=$(git log -1 --pretty=format:'%s')
+        if [[ $string == *"ci:skip array"* ]]; then
+        opts=$(echo "$opts" | sed 's/--isArray //g')
+        fi
+        if [[ $string == *"ci:skip syst"* ]]; then
+            opts=$(echo "$opts" | sed 's/--isSyst all//g')
+        elif [[ $string == *"ci:JERC_split"* ]]; then
+            opts=$(echo "$opts" | sed 's/--isSyst all/--isSyst JERC_split/g')
+        elif [[ $string == *"ci:weight_only"* ]]; then
+            opts=$(echo "$opts" | sed 's/--isSyst all/--isSyst weight_only/g') 
+        fi
+        python runner.py --workflow c_ttsemilep_sf --json metadata/test_bta_run3.json --limit 1 --executor iterative --campaign Summer23 --year 2023  $opts
+```
 
 Special commit head messages could run different commands in actions (add the flag in front of your commit)
 The default configureation is doing 
@@ -167,8 +187,233 @@ Yout can find the secret configuration in the direcotry : `Settings>>Secrets>>Ac
 </details>
 
 
+### 5. Refine used MC as input `sample.py`
+The `sample.py` collects the samples (dataset name) used in the workflow. This collections are use to create the dataset json file.
+- `data` : data sample (MuonEG, Muon0....)
+- `MC`: main MC used for the workflow
+- `minor_MC` : minor MC samples use for background events
+- `syst_MC`: systematic MC samples (TTbar sample mass, Hdamp ... variations)
+
+Here's the example for BTA_ttbar
+```python
+"BTA_ttbar": {
+        "data": ["MuonEG"],
+        "MC": ["TTto2L2Nu_TuneCP5_13p6TeV_powheg-pythia8"],
+        "minor_MC": [
+            "TTtoLNu2Q_TuneCP5_13p6TeV_powheg-pythia8",
+            "TWminusto2L2Nu_TuneCP5_13p6TeV_powheg-pythia8",
+            "TbarWplusto2L2Nu_TuneCP5_13p6TeV_powheg-pythia8",
+            "TWminustoLNu2Q_TuneCP5_13p6TeV_powheg-pythia8",
+            "TbarWplustoLNu2Q_TuneCP5_13p6TeV_powheg-pythia8",
+            "TbarBQ_t-channel_4FS_TuneCP5_13p6TeV_powheg-madspin-pythia8",
+            "TBbarQ_t-channel_4FS_TuneCP5_13p6TeV_powheg-madspin-pythia8",
+            "WWto2L2Nu_TuneCP5_13p6TeV_powheg-pythia8",
+            "ZZto2L2Q_TuneCP5_13p6TeV_powheg-pythia8",
+            "WZto3LNu_TuneCP5_13p6TeV_powheg-pythia8",
+            "WZtoLNu2Q_TuneCP5_13p6TeV_powheg-pythia8",
+        ],
+        "syst_MC": [
+            "TTto2L2Nu_MT-171p5_TuneCP5_13p6TeV_powheg-pythia8",
+            "TTto2L2Nu_MT-175p5_TuneCP5_13p6TeV_powheg-pythia8",
+            "TTto2L2Nu_Hdamp-158_TuneCP5_13p6TeV_powheg-pythia8",
+            "TTto2L2Nu_Hdamp-418_TuneCP5_13p6TeV_powheg-pythia8",
+            "TTto2L2Nu_TuneCP5Down_13p6TeV_powheg-pythia8",
+            "TTto2L2Nu_TuneCP5Up_13p6TeV_powheg-pythia8",
+        ],
+    },
+```
+
 ### Optional changes
-#### Refine used MC as input 
-#### Add workflow to `suball.py` 
-#### Add new common variables 
-#### Add additional `Weight` or `uncertainty` information 
+#### Add workflow to `scripts/suball.py` 
+The `suball.py` summarize the steps to obtain the result.
+In case your task requires to run several workflows, you can wrapped them as `dict` of the workflows
+```python
+scheme = {
+        # scale factor workflows
+        "SF": ["BTA_ttbar", "BTA_addPFMuons"],
+        # Use for prompt data MC checks for analysis
+        "Validation": ["ttdilep_sf", "ctag_Wc_sf"],
+        # commissioning workflows
+        "default_comissioning": [
+            "ttdilep_sf",
+            "ttsemilep_sf",
+            "ctag_Wc_sf",
+            "ctag_DY_sf",
+            "QCD_sf",
+            "QCD_mu_sf"
+        ],
+    }
+```
+#### Add new common variables in `helper/definition.py`
+
+In the `definition.py` we collect the axis definition, name and label of tagger scores/input variables 
+```python
+disc_list=[....] # tagger score
+definitions_dict = {
+    "DeepCSV_jetNSelectedTracks": # name used in tree 
+    {
+        "displayname": "Jet N Selected Tracks", # axis name
+        "manual_ranges": [0.0, 25],
+        "ylabel_text": "Jets",
+        "format_unit": "2f",
+        "format_unit_digits": 2,
+        "bins": 25,
+        "inputVar_units": None,
+    },
+    ...
+}
+```
+#### Additional corrections and uncertainty variations not in the framework
+The corrections are collected in `utils/correction.py`.  There are two types of the variation: weight varations, i.e. SFs, ueps weight, or object energy scale/resolution variations: JES/JER. Here's an example to add new corrections 
+
+1. Add new info `utils/AK4_parameter.py` 
+```python
+"JPCalib": {
+            "Run2023D-22Sep2023_v1": "calibeHistoWrite_Data2023D-22Sep2023_v1.root",
+            "Run2023D-22Sep2023_v2": "calibeHistoWrite_Data2023D-22Sep2023_v2.root",
+            "MC": "calibeHistoWrite_MC2023_Summer23BPix.root",
+        },        
+```
+2. Add new collections to `load_SF` in `utils/correction.py`
+Depends on corrections file type, read differently from its definition. See details in: [correctionlib official](https://gitlab.cern.ch/cms-nanoAOD/jsonpog-integration/-/tree/master/examples), or other custom way used in [coffea](https://coffea-hep.readthedocs.io/en/latest/notebooks/applying_corrections.html). This load all the correction information as `evaluator` can be use to extract weight information later
+```python
+for SF in config[campaign].keys():
+        if SF == "lumiMask":
+            continue
+        ## pileup weight
+        if SF == "PU":
+            ## Check whether files in jsonpog-integration exist
+            if os.path.exists(
+                f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/LUM/{year}_{campaign}"
+            ):
+                correct_map["PU"] = correctionlib.CorrectionSet.from_file(
+                    f"/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/LUM/{year}_{campaign}/puWeights.json.gz"
+                )
+            ## Otherwise custom files
+            else:
+                _pu_path = f"BTVNanoCommissioning.data.PU.{campaign}"
+                with importlib.resources.path(
+                    _pu_path, config[campaign]["PU"]
+                ) as filename:
+                    if str(filename).endswith(".pkl.gz"):
+                        with gzip.open(filename) as fin:
+                            correct_map["PU"] = cloudpickle.load(fin)[
+                                "2017_pileupweight"
+                            ]
+                    elif str(filename).endswith(".json.gz"):
+                        correct_map["PU"] = correctionlib.CorrectionSet.from_file(
+                            str(filename)
+                        )
+                    elif str(filename).endswith(".histo.root"):
+                        ext = extractor()
+                        ext.add_weight_sets([f"* * {filename}"])
+                        ext.finalize()
+                        correct_map["PU"] = ext.make_evaluator()
+
+```
+3.1 Add weight based correction
+
+In the `utils/correction` create the reader to get the weight 
+
+Create your function to readout the weight from the evaluator stored in the `correction_map`, the idea is to add the weight/systematic information to the event and return to the workflow
+
+
+
+```python
+def btagSFs(jet, correct_map, weights, SFtype, syst=False):
+    .....
+    if i == 0 and syst == False:
+            weights.add(SFtype, sfs)
+       
+    if syst == True:
+        weights.add_multivariation(
+            SFtype,
+            sfs,
+            systlist,
+            np.array(list(sfs_up_all.values())),
+            np.array(list(sfs_down_all.values())),
+        )
+        # in case you only have the up/down variation
+        weights.add(
+            SFtype,# name of the weight
+            sfs,# nominal SFs
+            sf_unc_up,#up varition 
+            sf_unc_down, #down varition 
+        )
+
+```
+
+In case it's a common correction, add to the `weight_manager` in `utils/correction` otherwise directly to the workflow (weight based)
+
+```python
+def weight_manager(pruned_ev, SF_map, isSyst):
+    weights = Weights(len(pruned_ev), storeIndividual=True)
+    ...
+    btagSFs(pruned_ev.SelJet, SF_map, weights, "DeepJetC", syst_wei)
+    btagSFs(pruned_ev.SelJet, SF_map, weights, "DeepJetB", syst_wei)
+    btagSFs(pruned_ev.SelJet, SF_map, weights, "DeepCSVB", syst_wei)
+    btagSFs(pruned_ev.SelJet, SF_map, weights, "DeepCSVC", syst_wei)
+    return weights
+```
+
+3.2 Add object variations
+
+For the object scale / resolution variation we shift object energy/positions as a list of `shifts` to the original object. 
+The `shifts` is a list of shifted object after the corrctions are applied to the objects
+
+```python
+# JES uncertainty 
+if "JES_Total" in jets.fields:
+    shifts += [
+        (
+            {
+                "Jet": jets.JES_Total.up, # change the objects to JES up variation
+                "MET": met.JES_Total.up,
+            },
+            "JESUp",  # the uncertainty variation name
+        ),
+        (
+            {
+                "Jet": jets.JES_Total.down,
+                "MET": met.JES_Total.down,
+            },
+            "JESDown",
+        ),
+    ]
+```
+
+In case the shifts are in common , put to `common_shifts`:
+```python
+if "JME" in self.SF_map.keys():
+        syst_JERC = self.isSyst
+        if self.isSyst == "JERC_split":
+            syst_JERC = "split"
+        shifts = JME_shifts(
+            shifts, self.SF_map, events, self._campaign, isRealData, syst_JERC
+        )
+    else:
+        if int(self._year) < 2020:
+            shifts = [
+                ({"Jet": events.Jet, "MET": events.MET, "Muon": events.Muon}, None)
+            ]
+        else:
+            shifts = [
+                (
+                    {
+                        "Jet": events.Jet,
+                        "MET": events.PuppiMET,
+                        "Muon": events.Muon,
+                    },
+                    None,
+                )
+            ]
+```
+
+
+otherwise in your workflow `process(self, events)` add new shifts
+```python
+def process(self, events):
+        events = missing_branch(events)
+        shifts = common_shifts(self, events)
+        shifts+=[({obj:variation},name)]
+```

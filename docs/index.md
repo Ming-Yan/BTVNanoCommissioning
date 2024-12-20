@@ -22,8 +22,6 @@ More options for the runner can be done:
 python runner.py -h
 ```
 
-
-
 Currently the available workflows are summarized 
 :::{tip}
 - Installation instructions are available [here](./installation.md)
@@ -48,4 +46,3 @@ scaleout.md
 auto.md
 api.rst
 ```
-

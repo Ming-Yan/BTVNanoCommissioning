@@ -3,6 +3,8 @@
 ![structure](figs/comm_wf.png)
 
 
+All in one script : `scripts/suball.py`
+
 All the steps are summarized in the [`suball.py`](#all-in-one-script--scriptssuballpy) scripts for the existing workflows. You can simply just run
 
 ```python
@@ -10,62 +12,41 @@ python scripts/suball.py --scheme ${SCHEME_FOR_STUDY} --campaign ${CAMPAIGN_FOR_
 #Example with 2023 Summer23 campaign
 python scripts/suball.py --scheme default_comissioning --campaign Summer23 --year 2023  --DAS_campaign "*Run2023D*Sep2023*,*Run3Summer23BPixNanoAODv12-130X*" 
 ```
+This wrap up the steps mentioned above as a streamline to obtained the required info
 
+The only missing item need to do manually is to change the updated correction in `AK4_parameter.py` as written [here](#correction-files-configurations)
 Each steps are also explained in detailed below, this can be obtain by 
 
+## 0.  Make the dataset json files 
 
-1. Is the `.json` file ready? If not, create it following the instructions in the [Make the json files](#make-the-dataset-json-files) section. Please use the correct naming scheme
-2. Add the `lumiMask`, correction files (SFs, pileup weight), and JER, JEC files under the dict entry in `utils/AK4_parameters.py`. See details in [Correction files configurations](#correction-files-configurations). When adding new files in `data/` subfolders, please create `__init__.py` for modules to find the path
 3. If selections and output histogram/arrays need to be changed, modify the dedicated `workflows`
 4. Run the workflow with dedicated input and campaign name. You can also specify `--isArray` to store the skimmed root files.
 5. Fetch the failed files to obtain events that have been processed and events that have to be resubmitted using `scripts/dump_processed.py`. Check the luminosity of the processed dataset used for the plotting script and re-run failed jobs if needed (details in [get procssed info](#get-processed-information))
 6. Once you obtain the `.coffea` file(s), you can make plots using the [plotting scripts](#plotting-code) under `scripts/`, if the xsection for your sample is missing, please add it to `src/BTVNanoCommissioning/helpers/xsection.py`
 
+Use `fetch.py` in folder `scripts/` to obtain your samples json files for the predefined workflow with the refined MC. For more flexible usage please find [details](scripts.md#fetchpy--create-input-json)
 
-## All in one script : `scripts/suball.py`
-
-The scripts put the steps to run the workflow in one place except 
-
-
-## 0.  Make the dataset json files 
-
-Use `fetch.py` in folder `scripts/` to obtain your samples json files. 
-`$input_DAS_list` is the name of your samples in CMS DAS, and `$output_json_name$` is the name of your output samples json file. `${campaign}` is the campaign name for the 
+The fetch script reads the predefine data & MC samples dataset name and output the json file to `metadata/$CAMPAIGN/`, but to find the exact dataset for BTV studies, we usually need to specify the `DAS_campaign`
 
 ```
-python fetch.py --input ${input_DAS_list} --output ${output_json_name} --campaign ${campaign}
+python scripts/fetch.py -c {campaign} --year {args.year}  --from_workflow {wf} --DAS_campaign {DAS_campaign} {overwrite} 
+# campaign :  the campaign name like Summer23,Winter22
+# year : data taking years 2022/2023...
+# wf: workflow name like ttdilep_sf, ctag_Wc_sf
+# DAS_campaign: Input the campaign name for DAS to search appropriate campaigns, use in dataset construction , please do `data_camapgin,mc_campaign` split by `,`, e.g. `*Run2023D*Sep2023*,*Run3Summer23BPixNanoAODv12-130X*` 
+# overwrite (bool): recreate the exist json file 
 ```
 
-
-The `fetch.py`  scripts follow the naming scheme as following:
-
-In case you want to make the `json` file yourself, please follow the rules:
-
-For the data sample
-
-```
-$dataset_$Run
-#i.e.
-SingleMuon_Run2022C-PromptReco-v1
-```
-For MC, please be consistent with the dataset name in CMS DAS, as it cannot be mapped to the cross section otherwise.
-```
-$dataset
-#i.e.
-WW_TuneCP5_13p6TeV-pythia8
-```
 
 :::{caution}
 Do not make the file list greater than 4k files to avoid scaleout issues in various site (file open limit)
 :::
 
-## Correction files configurations 
+## 1. Correction files configurations & add new correction files (Optional)
 
 If the correction files are not supported yet by jsonpog-integration, you can still try with custom input data.
 
-### Options with custom input data
-
-All the `lumiMask`, correction files (SFs, pileup weight), and JEC, JER files are under  `BTVNanoCommissioning/src/data/` following the substructure `${type}/${campaign}/${files}`(except `lumiMasks` and `Prescales`)
+All the `lumiMask`, correction files (SFs, pileup weight), and JEC, JER files are under  `BTVNanoCommissioning/src/data/` following the substructure `${type}/${year}_${campaign}/${files}`(except `lumiMasks` and `Prescales`)
 
 | Type        | File type |  Comments|
 | :---:   | :---: | :---: |
@@ -156,4 +137,252 @@ The official correction files collected in [jsonpog-integration](https://gitlab.
   ```
 
 
-## Reading coffea `hist` &  convert to ROOT TH1 
+
+
+## 2. Run the workflow to get coffea files
+
+The `runner.py` handles the options to select the workflow with dedicated configuration for each campaign. The miniumum required info is 
+```
+python runner.py --wf {wf} --json metadata/{args.campaign}/{types}_{args.campaign}_{args.year}_{wf}.json {overwrite} --campaign {args.campaign} --year {args.year} 
+```
+
+:::{tip}
+- In case just to test your program, you can limit only one file with one chunk using iterative executor to avoid overwriting error message by `--max 1 --limit 1 --executor iterative`
+- In case you only want to run particular sample in your json `--only $dataset_name`, i.e. `--only TT*` or `--only MuonEG_Run2023A`
+- Change the numbers of scale job by `-s $NJOB`
+- Store the arrays by setting the flag `--isArray`
+- Modifying chunk size in case the jobs is to big `--chunk $N_EVENTS_PER_CHUNK`
+- Sometimes the global redirector is insufficient, you can increase the numbers of retries (only in parsl/dask) `--retries 30`, or skip the files `--skipbadfiles` and later reprocess the missing info by create the json with skipped files. Methods to create the json files discussed in the next part.
+:::
+
+Other options detail can be found here 
+
+<details><summary>runner options</summary>
+<p>
+
+```python
+### ====> REQUIRED <=======
+# --wf {validation,ttdilep_sf,ttsemilep_sf,c_ttsemilep_sf,emctag_ttdilep_sf,ctag_ttdilep_sf,ectag_ttdilep_sf,ctag_ttsemilep_sf,ectag_ttsemilep_sf,QCD_sf,QCD_smu_sf,ctag_Wc_sf,ectag_Wc_sf,ctag_DY_sf,ectag_DY_sf,BTA,BTA_addPFMuons,BTA_addAllTracks,BTA_ttbar}, --workflow {validation,ttdilep_sf,ttsemilep_sf,c_ttsemilep_sf,emctag_ttdilep_sf,ctag_ttdilep_sf,ectag_ttdilep_sf,ctag_ttsemilep_sf,ectag_ttsemilep_sf,QCD_sf,QCD_smu_sf,ctag_Wc_sf,ectag_Wc_sf,ctag_DY_sf,ectag_DY_sf,BTA,BTA_addPFMuons,BTA_addAllTracks,BTA_ttbar}
+#                         Which processor to run
+#   -o OUTPUT, --output OUTPUT
+#                         Output histogram filename (default: hists.coffea)
+#   --json SAMPLEJSON     JSON file containing dataset and file locations (default: dummy_samples.json)
+#   --year YEAR           Year
+#   --campaign CAMPAIGN   Dataset campaign, change the corresponding correction files
+
+#=======Optional======
+#   --isSyst {False,all,weight_only,JERC_split,JP_MC}
+#                         Run with systematics, all, weights_only(no JERC uncertainties included),JERC_split, None
+#   --isArray             Output root files
+#   --noHist              Not output coffea histogram
+#   --overwrite           Overwrite existing files
+
+#   --executor {iterative,futures,parsl/slurm,parsl/condor,parsl/condor/naf_lite,dask/condor,dask/condor/brux,dask/slurm,dask/lpc,dask/lxplus,dask/casa,condor_standalone}
+#                         The type of executor to use (default: futures). Other options can be implemented. For example see https://parsl.readthedocs.io/en/stable/userguide/configuring.html-
+#                         `parsl/slurm` - tested at DESY/Maxwell- `parsl/condor` - tested at DESY, RWTH- `parsl/condor/naf_lite` - tested at DESY- `dask/condor/brux` - tested at BRUX (Brown U)-
+#                         `dask/slurm` - tested at DESY/Maxwell- `dask/condor` - tested at DESY, RWTH- `dask/lpc` - custom lpc/condor setup (due to write access restrictions)- `dask/lxplus` - custom
+#                         lxplus/condor setup (due to port restrictions)
+#   -j WORKERS, --workers WORKERS
+#                         Number of workers (cores/threads) to use for multi-worker executors (e.g. futures or condor) (default: 3)
+#   -s SCALEOUT, --scaleout SCALEOUT
+#                         Number of nodes to scale out to if using slurm/condor. Total number of concurrent threads is ``workers x scaleout`` (default: 6)
+#   --memory MEMORY       Memory used in jobs default ``(default: 4.0)
+#   --disk DISK           Disk used in jobs default ``(default: 4)
+#   --voms VOMS           Path to voms proxy, made accessible to worker nodes. By default a copy will be made to $HOME.
+#   --chunk N             Number of events per process chunk
+#   --retries N           Number of retries for coffea processor
+#   --fsize FSIZE         (Specific for dask/lxplus file splitting, default: 50) Numbers of files processed per dask-worker
+#   --index INDEX         (Specific for dask/lxplus file splitting, default: 0,0) Format: $dict_index_start,$file_index_start,$dict_index_stop,$file_index_stop. Stop indices are optional. $dict_index
+#                         refers to the index, splitted $dict_index and $file_index with ','$dict_index refers to the sample dictionary of the samples json file. $file_index refers to the N-th batch
+#                         of files per dask-worker, with its size being defined by the option --index. The job will start (stop) submission from (with) the corresponding indices.
+#   --validate            Do not process, just check all files are accessible
+#   --skipbadfiles        Skip bad files.
+#   --only ONLY           Only process specific dataset or file
+#   --limit N             Limit to the first N files of each dataset in sample JSON
+#   --max N               Max number of chunks to run in total
+```
+
+</p>
+</details>
+
+
+## 3. Dump processed information to obtain luminoisty and processed files
+
+After obtained `coffea` file, we can check the processed files and obtain the luminoisty.
+
+Get the run & luminosity information for the processed events from the coffea output files. When you use `--skipbadfiles`, the submission will ignore files not accesible(or time out) by xrootd. This script helps you to dump the processed luminosity into a json file which can be calculated by brilcalc tool and provide a list of failed lumi sections by comparing the original json input to the one from the `.coffea` files.
+We will see the luminosity info in `/pb` and the skipped files as new json for resubmission.
+
+
+```bash
+python scripts/dump_processed.py -t all -c INPUT_COFFEA --json ORIGINAL_JSON_INPUT -n {args.campaign}_{args.year}_{wf}
+#   -t {all,lumi,failed}, --type {all,lumi,failed}
+#                         Choose the function for dump luminosity(`lumi`)/failed files(`failed`) into json
+#   -c COFFEA, --coffea COFFEA
+#                         Processed coffea files, splitted by ,. Wildcard option * available as well.
+#   -n FNAME, --fname FNAME
+#                         Output name of jsons(with _lumi/_dataset)
+#   -j JSONS, --jsons JSONS
+#                         Original input json files, splitted by ,. Wildcard option * available as well.
+```
+
+### 4. Obtain data/MC plots 
+
+We can obtain data/MC plots from coffea via the plotting scripts: 
+
+You can specify `-v all` to plot all the variables in the `coffea` file, or use wildcard options (e.g. `-v "*DeepJet*"` for the input variables containing `DeepJet`)
+
+:new: non-uniform rebinning is possible, specify the bins with  list of edges `--autorebin 50,80,81,82,83,100.5`
+
+```bash
+python scripts/plotdataMC.py -i a.coffea,b.coffea --lumi 41500 -p ttdilep_sf -v z_mass,z_pt  
+python scripts/plotdataMC.py -i "test*.coffea" --lumi 41500 -p ttdilep_sf -v z_mass,z_pt # with wildcard option need ""
+
+```
+
+<details><summary>options</summary>
+<p>
+```
+options:
+  -h, --help            show this help message and exit
+  --lumi LUMI           luminosity in /pb
+  --com COM             sqrt(s) in TeV
+  -p {ttdilep_sf,ttsemilep_sf,ctag_Wc_sf,ctag_DY_sf,ctag_ttsemilep_sf,ctag_ttdilep_sf}, --phase {dilep_sf,ttsemilep_sf,ctag_Wc_sf,ctag_DY_sf,ctag_ttsemilep_sf,ctag_ttdilep_sf}
+                        which phase space
+  --log LOG             log on y axis
+  --norm NORM           Use for reshape SF, scale to same yield as no SFs case
+  -v VARIABLE, --variable VARIABLE
+                        variables to plot, splitted by ,. Wildcard option * available as well. Specifying `all` will run through all variables.
+  --SF                  make w/, w/o SF comparisons
+  --ext EXT             prefix name
+  -i INPUT, --input INPUT
+                        input coffea files (str), splitted different files with ','. Wildcard option * available as well.
+   --autorebin AUTOREBIN
+                        Rebin the plotting variables, input `int` or `list`. int: merge N bins. list of number: rebin edges(non-uniform bin is possible)
+   --xlabel XLABEL      rename the label for x-axis
+   --ylabel YLABEL      rename the label for y-axis
+   --splitOSSS SPLITOSSS 
+                        Only for W+c phase space, split opposite sign(1) and same sign events(-1), if not specified, the combined OS-SS phase space is used
+   --xrange XRANGE      custom x-range, --xrange xmin,xmax
+   --flow FLOW 
+                        str, optional {None, 'show', 'sum'} Whether plot the under/overflow bin. If 'show', add additional under/overflow bin. If 'sum', add the under/overflow bin content to first/last bin.
+   --split {flavor,sample,sample_flav}
+                        Decomposition of MC samples. Default is split to jet flavor(udsg, pu, c, b), possible to split by group of MC
+                        samples. Combination of jetflavor+ sample split is also possible 
+```
+
+</p>
+</details>
+
+
+
+## Reading coffea `hist`  
+
+
+Quick tutorial to go through coffea files
+
+
+### Structure of the file
+
+The coffea contains histograms  wrapped in a dictionary with `$dataset:{$histname:hist}`, the `hist` is the object using
+[hist](https://hist.readthedocs.io/en/latest/) which allows multidimensional bins with different types of array
+```python
+{'WW_TuneCP5_13p6TeV-pythia8':{
+'btagDeepFlavB_b_0': Hist(
+  IntCategory([0, 1, 4, 5, 6], name='flav', label='Genflavour'),
+  IntCategory([1, -1], name='osss', label='OS(+)/SS(-)'),
+  StrCategory(['noSF'], growth=True, name='syst'),
+  Regular(30, -0.2, 1, name='discr', label='btagDeepFlavB_b'),
+  storage=Weight()) # Sum: WeightedSum(value=140, variance=140), 'btagDeepFlavB_bb_0': Hist(
+  IntCategory([0, 1, 4, 5, 6], name='flav', label='Genflavour'),
+  IntCategory([1, -1], name='osss', label='OS(+)/SS(-)'),
+  StrCategory(['noSF'], growth=True, name='syst'),
+  Regular(30, -0.2, 1, name='discr', label='btagDeepFlavB_bb'),
+  storage=Weight()) # Sum: WeightedSum(value=140, variance=140), 'btagDeepFlavB_lepb_0': Hist(
+  IntCategory([0, 1, 4, 5, 6], name='flav', label='Genflavour'),
+  IntCategory([1, -1], name='osss', label='OS(+)/SS(-)'),
+  StrCategory(['noSF'], growth=True, name='syst'),
+  Regular(30, -0.2, 1, name='discr', label='btagDeepFlavB_lepb'),
+  storage=Weight()) # Sum: WeightedSum(value=140, variance=140)}}
+```
+There are also `column_array` stores the processed file and lumi/run info in each dataset for data. The information are used in [dump_processed info](user.md#3-dump-processed-information-to-obtain-luminoisty-and-processed-files) 
+
+
+
+The histogram is a multidimentinal histogram, with all the axis listed
+```python
+Hist(
+  IntCategory([0, 1, 4, 5, 6], name='flav', label='Genflavour'),# different genflavor, 0 for light, 1 for PU, 2 for c, 3 for b. Always 0 for data.
+  IntCategory([1, -1], name='osss', label='OS(+)/SS(-)'),# opposite sign or same sign, only appears in W+c workflow
+  StrCategory(['noSF','PUUp','PUDown'], growth=True, name='syst'),# systematics variations,
+  Regular(30, -0.2, 1, name='discr', label='btagDeepFlavB_lepb'),# discriminator distribution, the last axis is always the variable
+  storage=Weight()) # Sum: WeightedSum(value=140, variance=140)# Value is sum of the entries, Variances is sum of the variances.
+```
+
+### Read coffea files and explore the histogram
+
+```python
+from coffea.util import load
+# open coffea file
+output=load("hists_ctag_Wc_sf_VV.coffea"）
+# get the histogram and read the info
+hist=output['WW_TuneCP5_13p6TeV-pythia8']['btagDeepFlavB_lepb_0']
+# addition for two histogram is possible if the axis is the same
+histvv=output['WW_TuneCP5_13p6TeV-pythia8']['btagDeepFlavB_lepb_0']+
+       output['WZ_TuneCP5_13p6TeV-pythia8']['btagDeepFlavB_lepb_0']+
+       output['ZZ_TuneCP5_13p6TeV-pythia8']['btagDeepFlavB_lepb_0']
+# To get 1D histogram, we need to reduce the dimention
+# we can specify the axis we want to read, e.g. read charm jet, opposite sign events with noSF
+axis={'flav':3,'os':0,'syst':'noSF'}
+hist1d=hist[axis] #--> this is the 1D histogram Hist
+# you can also sum over the axis, e.g. here shows no jet flavor split and sum os+ss
+axis={'flav':sum,'os':sum,'syst':'noSF'}
+# rebin the axis is also possible, rebin the discrimnator by merged two bins into one
+axis={'flav':sum,'os':sum,'syst':'noSF','discr':hist.rebin(2)}
+```
+
+### Plot the histogram
+You can simply plot the histogram using [mplhep](https://mplhep.readthedocs.io/en/latest/)
+```python
+import mplhep as hep
+import matplotlib.pyplot as plt
+# set the plot style like tdr style
+plt.style.use(hep.style.ROOT)
+# make 1D histogram plot
+hep.histplot(hist1D) 
+```
+### convert coffea hist to ROOT TH1
+
+ `scripts/make_template.py` does the work to convert the coffea hist into 1D/2D ROOT histogram:
+```
+python scripts/make_template.py -i "testfile/*.coffea" --lumi 7650 -o test.root -v mujet_pt -a '{"flav":0,"osss":"sum"}' --mergemap 
+``
+ -h, --help            show this help message and exit
+  -i INPUT, --input INPUT
+                        Input coffea file(s), can be a regular expression contains '*'
+  -v VARIABLE, --variable VARIABLE
+                        Variables to store(histogram name)
+  -a AXIS, --axis AXIS  dict, put the slicing of histogram, specify 'sum' option as string
+  --lumi LUMI           Luminosity in /pb , normalize the MC yields to corresponding luminosity
+  -o OUTPUT, --output OUTPUT
+                        output root file name
+  --mergemap MERGEMAP   Specify mergemap as dict, '{merge1:[dataset1,dataset2]...}' Also works with the json file with dict
+```
+ 
+
+:::tip{merge map}
+```python
+{
+    "WJets": ["WJetsToLNu_TuneCP5_13p6TeV-madgraphMLM-pythia8"],
+    "VV": [ "WW_TuneCP5_13p6TeV-pythia8", "WZ_TuneCP5_13p6TeV-pythia8", "ZZ_TuneCP5_13p6TeV-pythia8"],
+    "TT": [ "TTTo2J1L1Nu_CP5_13p6TeV_powheg-pythia8", "TTTo2L2Nu_CP5_13p6TeV_powheg-pythia8"],
+    "ST":[ "TBbarQ_t-channel_4FS_CP5_13p6TeV_powheg-madspin-pythia8", "TbarWplus_DR_AtLeastOneLepton_CP5_13p6TeV_powheg-pythia8", "TbarBQ_t-channel_4FS_CP5_13p6TeV_powheg-madspin-pythia8", "TWminus_DR_AtLeastOneLepton_CP5_13p6TeV_powheg-pythia8"],
+"data":[ "Muon_Run2022C-PromptReco-v1", "SingleMuon_Run2022C-PromptReco-v1", "Muon_Run2022D-PromptReco-v1", "Muon_Run2022D-PromptReco-v2"]
+}
+```
+
+:::
+
+
+
+

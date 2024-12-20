@@ -564,7 +564,9 @@ def main(args):
         os.system(f"mkdir -p metadata/{args.campaign}/")
         with open(f"metadata/{args.campaign}/{args.output}", "w") as fp:
             json.dump(fdict, fp, indent=4)
-            print("The file is saved at: ", output_file)
+            print(
+                "The file is saved at: metadata/", {args.campaign}, "/", {args.output}
+            )
 
 
 if __name__ == "__main__":
