@@ -1,4 +1,18 @@
-# Preparation for commissioning/SFs tasks
+# For user : Running the workflows
+
+![structure](figs/comm_wf.png)
+
+
+All the steps are summarized in the [`suball.py`](#all-in-one-script--scriptssuballpy) scripts for the existing workflows. You can simply just run
+
+```python
+python scripts/suball.py --scheme ${SCHEME_FOR_STUDY} --campaign ${CAMPAIGN_FOR_SF} --year ${YEAR}  --DAS_campaign "$DATA_CAMPAIGN_RGX,$MC_CAMPAIGN_RGX"
+#Example with 2023 Summer23 campaign
+python scripts/suball.py --scheme default_comissioning --campaign Summer23 --year 2023  --DAS_campaign "*Run2023D*Sep2023*,*Run3Summer23BPixNanoAODv12-130X*" 
+```
+
+Each steps are also explained in detailed below, this can be obtain by 
+
 
 1. Is the `.json` file ready? If not, create it following the instructions in the [Make the json files](#make-the-dataset-json-files) section. Please use the correct naming scheme
 2. Add the `lumiMask`, correction files (SFs, pileup weight), and JER, JEC files under the dict entry in `utils/AK4_parameters.py`. See details in [Correction files configurations](#correction-files-configurations). When adding new files in `data/` subfolders, please create `__init__.py` for modules to find the path
@@ -7,19 +21,27 @@
 5. Fetch the failed files to obtain events that have been processed and events that have to be resubmitted using `scripts/dump_processed.py`. Check the luminosity of the processed dataset used for the plotting script and re-run failed jobs if needed (details in [get procssed info](#get-processed-information))
 6. Once you obtain the `.coffea` file(s), you can make plots using the [plotting scripts](#plotting-code) under `scripts/`, if the xsection for your sample is missing, please add it to `src/BTVNanoCommissioning/helpers/xsection.py`
 
-## Make the dataset json files 
 
-Use `fetch.py` in folder `scripts/` to obtain your samples json files. `$input_DAS_list` is the name of your samples in CMS DAS, and `$output_json_name$` is the name of your output samples json file.
+## All in one script : `scripts/suball.py`
+
+The scripts put the steps to run the workflow in one place except 
+
+
+## 0.  Make the dataset json files 
+
+Use `fetch.py` in folder `scripts/` to obtain your samples json files. 
+`$input_DAS_list` is the name of your samples in CMS DAS, and `$output_json_name$` is the name of your output samples json file. `${campaign}` is the campaign name for the 
 
 ```
-python fetch.py --input ${input_DAS_list} --output ${output_json_name} --site ${site}
+python fetch.py --input ${input_DAS_list} --output ${output_json_name} --campaign ${campaign}
 ```
-The `output_json_name` must contain the BTV name tag (e.g. `BTV_Run3_2022_Comm_v1`).
-
-You might need to rename the json key name with following name scheme:
 
 
-For the data sample please use the naming scheme,
+The `fetch.py`  scripts follow the naming scheme as following:
+
+In case you want to make the `json` file yourself, please follow the rules:
+
+For the data sample
 
 ```
 $dataset_$Run
@@ -33,10 +55,9 @@ $dataset
 WW_TuneCP5_13p6TeV-pythia8
 ```
 
->  [!Caution]
-> Do not make the file list greater than 4k files to avoid scaleout issues in various site
-
-
+:::{caution}
+Do not make the file list greater than 4k files to avoid scaleout issues in various site (file open limit)
+:::
 
 ## Correction files configurations 
 
@@ -134,3 +155,5 @@ The official correction files collected in [jsonpog-integration](https://gitlab.
       },
   ```
 
+
+## Reading coffea `hist` &  convert to ROOT TH1 

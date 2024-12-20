@@ -42,8 +42,9 @@ python runner.py --wf ttcom --executor dask/lxplus
 jobs automatically split to 50 files per jobs to avoid job failure due to crowded cluster on lxplus with the naming scheme `hist_$workflow_$json_$dictindex_$fileindex.coffea`. The `.coffea` files can be then combined at plotting level
 
 
-! [CAUTION]
+:::{caution}
 The optimal scaleout options on lxplus are `-s 50 --chunk 50000`
+:::
 
 To deal with unstable condor cluster and dask worker on lxplus, you can resubmit failure jobs via `--index $dictindex,$fileindex` option. `$dictindex` refers to the index in the `.json dict`, `$fileindex` refers to the index of the file list split to 50 files per dask-worker. The total number of files of each dict can be computed by `math.ceil(len($filelist)/50)` The job will start from the corresponding indices.
 
@@ -63,17 +64,14 @@ Authentication is handled automatically via login auth token instead of a proxy.
 python runner.py --wf ttcom --executor dask/condor(parsl/condor)
 ```
 
-#### Maxwell@DESY 
-```bash
-python runner.py --wf ttcom --executor parsl/slurm
-```
 
 
 
 ### Standalone condor jobs@lxplus/cmsconnect
 
-[!Warning]
+:::{warning}
 Strongly suggest to use this in lxplus 
+:::
 
 You have the option to run the framework through "standalone condor jobs", bypassing the native coffea-supported job submission system. Within each job you submit, a standalone script will execute the following on the worker node:
 

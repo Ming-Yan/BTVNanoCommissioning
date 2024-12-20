@@ -1,4 +1,4 @@
-## Scripts 
+## Scripts: prepare input/process output
 
 Here lists scripts can be used for BTV tasks
 
@@ -12,33 +12,6 @@ Use `fetch.py` in folder `scripts/` to obtain your samples json files. You can c
 The `--whitelist_sites, --blacklist_sites` are considered for fetch dataset if multiple sites are available
 
 
-```
-## File publish in DAS, input MC file name list, specified --from_dataset and add campaign info, if more than one campaign found, would ask for specify explicity
-python scripts/fetch.py -i $MC_FILE_LIST -o ${output_json_name} --from_dataset --campaign Run3Summer23BPixNanoAODv12
-## File publish in DAS, input DAS path
-python fetch.py --input ${input_DAS_list} --output ${output_json_name} (--xrd {prefix_forsite})
-
-## Not publish case, specify site by --xrd prefix
-python fetch.py --input ${input_list} --output ${output_json_name} --xrd {prefix_forsite}
-# where the input list should contains
-$DATASET_NAME $PATH_TO_FILE
-```
-The `output_json_name` must contain the BTV name tag (e.g. `BTV_Run3_2022_Comm_v1`).
-
-You might need to rename the json key name with following name scheme:
-
-For the data sample please use the naming scheme,
-```
-$dataset_$Run
-#i.e.
-SingleMuon_Run2022C-PromptReco-v1
-```
-For MC, please be consistent with the dataset name in CMS DAS, as it cannot be mapped to the cross section otherwise.
-```
-$dataset
-#i.e.
-WW_TuneCP5_13p6TeV-pythia8
-```
 
  
 
@@ -46,8 +19,10 @@ WW_TuneCP5_13p6TeV-pythia8
 
 ### Get Prescale weights
 
->  [!Caution]
-> Only works if `/cvmfs` is binding in the system
+:::{caution}
+Only works if `/cvmfs` is binding in the system
+:::
+
 Generate prescale weights using `brilcalc`
 
 ```python
@@ -56,22 +31,6 @@ python scripts/dump_prescale.py --HLT $HLT --lumi $LUMIMASK
 # lumi: golden lumi json
 ```
 
-### Create compiled JERC file(`pkl.gz`)
-
->  [!Caution]
-> In case existing correction file doesn't work for you due to the incompatibility of `cloudpickle` in different python versions. Please recompile the file to get new pickle file.
-
-Under `compile_jec.py` you need to create dedicated jet factory files with different campaigns. Following the name scheme with `mc` for MC and `data${run}` for data.
-
-Compile correction pickle files for a specific JEC campaign by changing the dict of jet_factory, and define the MC campaign and the output file name by passing it as arguments to the python script:
-
-```
-python -m BTVNanoCommissioning.utils.compile_jec ${campaign} jec_compiled
-e.g. python -m BTVNanoCommissioning.utils.compile_jec Summer23 jec_compiled
-```
-
-
-Get processed info, create plots or root file templates 
 
 ### Get processed information
 
@@ -185,7 +144,7 @@ Extract the ROCs for different tagger and efficiencies from validation workflow
 python scripts/validation_plot.py -i  $INPUT_COFFEA -v $VERSION
 ```
 
-## Store histograms from coffea file
+### Store histograms from coffea file
 
 Use `scripts/make_template.py` to dump 1D/2D histogram from `.coffea` to `TH1D/TH2D` with hist. MC histograms can be reweighted to according to luminosity value given via `--lumi`. You can also merge several files 
 

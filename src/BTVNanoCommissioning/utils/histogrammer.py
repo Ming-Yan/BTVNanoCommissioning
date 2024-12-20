@@ -11,7 +11,7 @@ from BTVNanoCommissioning.helpers.func import flatten
 def histogrammer(events, workflow):
     """
     Most of workflows require same set of variables. Collect axis, histograms definition in single file
-    
+
     To contribute: Add additional axis, histogram using [hist](https://hist.readthedocs.io/en/latest/) for dedicated workflow into the `_hist_dict`. For the new histogram, please have the `syst_axis` as first axis, and `Weight` as last axis.
 
     Parameters:
@@ -509,6 +509,7 @@ def histogrammer(events, workflow):
             syst_axis, flav_axis, jpt_axis, Hist.storage.Weight()
         )
     ### Btag input variables & PFCands
+
     bininfo = definitions()
     for d in bininfo.keys():
         if d not in events.Jet.fields:
@@ -520,6 +521,8 @@ def histogrammer(events, workflow):
             if bininfo[d]["inputVar_units"] is not None
             else bininfo[d]["displayname"]
         )
+        if "WP" not in workflow:
+            break
         if "Wc_sf" in workflow:
             _hist_dict[d] = Hist.Hist(
                 syst_axis,

@@ -20,8 +20,6 @@ from BTVNanoCommissioning.helpers.cTagSFReader import getSF
 from BTVNanoCommissioning.utils.AK4_parameters import correction_config as config
 
 
-
-
 def load_SF(year, campaign, syst=False):
     """
     Load scale factors (SF) for a given year and campaign.
@@ -399,6 +397,8 @@ weights.add(sf.split(" ")[0], sfs_alle, sfs_alle_up, sfs_alle_down)
 ```
 
 """
+
+
 def common_shifts(self, events):
     """
     Apply common shifts to a events(mostly affect energy resolution/scale of objects).
@@ -435,7 +435,7 @@ def common_shifts(self, events):
                         "JESDown",
                     )]
     ``
-    Different treatment for weights and scale/resolution shifts is necessary to ensure accurate corrections and uncertainties are applied to the data. 
+    Different treatment for weights and scale/resolution shifts is necessary to ensure accurate corrections and uncertainties are applied to the data.
 
     Parameters:
     self (dict): The configuration dictionary from SF_map containing the scale factors and other settings.

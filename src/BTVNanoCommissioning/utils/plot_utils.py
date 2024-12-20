@@ -135,7 +135,6 @@ _coverage1sd = scipy.stats.norm.cdf(1) - scipy.stats.norm.cdf(-1)
 
 
 def compatible(self, other):
-
     """
     Checks if this histogram is compatible with another, i.e. they have identical binning
     """
@@ -150,7 +149,6 @@ def compatible(self, other):
 
 
 def poisson_interval(sumw, sumw2, coverage=_coverage1sd):
-    
     """
     Frequentist coverage interval for Poisson-distributed observations
     Parameters
@@ -196,7 +194,6 @@ def poisson_interval(sumw, sumw2, coverage=_coverage1sd):
 
 
 def normal_interval(pw, tw, pw2, tw2, coverage=_coverage1sd):
-   
     """
     Compute errors based on the expansion of pass/(pass + fail), possibly weighted
     Parameters
