@@ -415,6 +415,7 @@ def common_shifts(self, events):
     Normally done before selection to apply updated objects.
     Uncertainties are handled by updating object collections with up/down variations.
     Example for Shift List:
+
     ```python
     # nominal correction
     shift = [({"Jet": jets, "MET": met, "Muon" : muon}, None)]
@@ -435,7 +436,8 @@ def common_shifts(self, events):
                         },
                         "JESDown",
                     )]
-    ``
+    ```
+
     Different treatment for weights and scale/resolution shifts is necessary to ensure accurate corrections and uncertainties are applied to the data.
 
     Parameters:
@@ -904,33 +906,30 @@ def Roccor_shifts(shifts, correct_map, events, isRealData, systematic=False):
 
 def puwei(nPU, correct_map, weights, syst=False):
     """
-    <<<<<<< HEAD
-        Return pileup weight
-        Parameters
-        ----------
-        nPU: ak.Array
-        correct_map : dict
-        weights : coffea.analysis_tool.weights
-        syst: "split", "weight_only"
-    =======
-        Apply pileup weights to events based on the number of primary vertices (nPU).
+    Return pileup weight
+    Parameters
+    ----------
+    nPU: ak.Array
+    correct_map : dict
+    weights : coffea.analysis_tool.weights
+    syst: "split", "weight_only"
+    Apply pileup weights to events based on the number of primary vertices (nPU).
 
-        This function applies pileup weights to the events using the provided correction map and weights.
-        It can optionally apply systematic variations.
+    This function applies pileup weights to the events using the provided correction map and weights.
+    It can optionally apply systematic variations.
 
-        Parameters:
-        nPU (awkward.Array(int)): The number of primary vertices in the event.
-        correct_map (dict): A dictionary containing correction factors and settings for pileup weights.
-        weights (): A dictionary to store the calculated weights.
-        syst (bool, optional): A flag to indicate whether to apply systematic variations. Default is False.
+    Parameters:
+    nPU (awkward.Array(int)): The number of primary vertices in the event.
+    correct_map (dict): A dictionary containing correction factors and settings for pileup weights.
+    weights (): A dictionary to store the calculated weights.
+    syst (bool, optional): A flag to indicate whether to apply systematic variations. Default is False.
 
-        Returns:
-        None: The function modifies the weights dictionary in place.
+    Returns:
+    None: The function modifies the weights dictionary in place.
 
-        Raises:
-        KeyError: If required keys are missing in the correct_map.
-        ValueError: If the nPU value is not recognized or supported.
-    >>>>>>> doc
+    Raises:
+    KeyError: If required keys are missing in the correct_map.
+    ValueError: If the nPU value is not recognized or supported.
     """
     if "correctionlib" in str(type(correct_map["PU"])):
         if syst:
@@ -1881,8 +1880,9 @@ class JPCalibHandler(object):
         """
         Calculate the track probability from the integral of the track IPsig templates, given the IPsig and category.
         Reference code: https://github.com/cms-sw/cmssw/blob/CMSSW_13_0_X/RecoBTag/TrackProbability/src/HistogramProbabilityEstimator.cc
-            ipsig: IP significance array
-            cat: category array (0-9)
+
+        ipsig: IP significance array
+        cat: category array (0-9)
         """
 
         if ak.any(cat < 0) or ak.any(cat > 9):
