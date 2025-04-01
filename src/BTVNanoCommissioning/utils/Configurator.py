@@ -152,9 +152,14 @@ class Configurator:
                             pass_filter = False
 
                     if pass_filter:
-                        self.fileset[key] = ds
+                        print(key)
+                        if key not in self.fileset.keys(): self.fileset[key]=ds
+                        else:self.fileset[key]+=ds
+
             else:
                 self.fileset.update(ds_dict)
+            # print(list(ds_dict.keys())[0],len(ds_dict[list(ds_dict.keys())[0]]))
+        
         if self.run_options["executor"] == "dask/casa":
             for key in self.fileset.keys():
                 if "xrootd-cms.infn.it" in self.fileset[key][0]:

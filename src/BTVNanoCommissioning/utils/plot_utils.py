@@ -5,7 +5,7 @@ import glob
 import scipy.stats
 import warnings
 import numpy as np
-
+import psutil, os 
 errband_opts = {
     "hatch": "////",
     "facecolor": "none",
@@ -224,12 +224,28 @@ def load_coffea(config, scaleToLumi=True):
         from BTVNanoCommissioning.utils.xs_scaler import scaleSumW
     if "*" in config["input"]:
         files = glob.glob(config["input"])
-        output = {i: load(i) for i in files}
+        output={}
+        # print(
+        #     "before load",
+        #     psutil.Process(os.getpid()).memory_info().rss / 1024**2,
+        #     "MB",
+        # )
+        #filtered = ['sumw', 'template_lep1_pt', 'template_lep2_pt', 'template_BDT_SR2_LM', 'template_BDT_SR_LM', 'template_BDT_SR_HM',"template_mT"]
+        for i in  files:
+           
+            f=load(i)
 
+            output[list(f.keys())[0]]={k:v for  k,v in f[list(f.keys())[0]].items() if 'sumw' ==k or 'template' in  k}
+            #print(output[list(f.keys())[0]].keys())
+        
+        output = {i: load(i) for i in files}
+        
+        # for 
         if scaleToLumi:
             output = scaleSumW(output, config["lumi"])
     elif len(config["input"]) > 0:
         output = {i: load(i) for i in config["input"]}
+        
         if scaleToLumi:
             output = scaleSumW(output, config["lumi"])
     else:

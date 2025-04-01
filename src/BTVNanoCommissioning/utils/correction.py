@@ -21,6 +21,7 @@ def load_SF(campaign, config, syst=False):
         if SF == "lumiMask":
             continue
         ## pileup weight
+
         if SF == "PU":
             ## Check whether files in jsonpog-integration exist
             if os.path.exists(
@@ -43,18 +44,26 @@ def load_SF(campaign, config, syst=False):
                         ext.add_weight_sets([f"* * {filename}"])
                         ext.finalize()
                         correction_map["PU"] = ext.make_evaluator()["PU"]
+        elif SF=="jetveto":
+            ext = extractor()
+            ext.add_weight_sets([f"{config['jetveto'].split(' ')[0]} {config['jetveto'].split(' ')[0]} src/BTVNanoCommissioning/data/JME/{campaign}/{config['jetveto'].split(' ')[1]}"])
+
+            ext.finalize()
+            correction_map["jetveto"] = ext.make_evaluator()
+
         elif SF == "HLT":
             ext = extractor()
-            
+            correction_map["HLT_cfg"] = config["HLT"]["mu"].split(" ")[0]
             # with importlib.resources.path(_pu_path, config["HLT"]) as filename:
-            for filename in config["HLT"]:
-                ext.add_weight_sets([f"* * src/BTVNanoCommissioning/data/LSF/{campaign}/{filename}"])
+            for hlts in config["HLT"].keys():
+                if hlts == "mu": config["HLT"][hlts] = config["HLT"][hlts].split(" ")[1]
+                ext.add_weight_sets([f"* * src/BTVNanoCommissioning/data/LSF/{campaign}/{config['HLT'][hlts]}"])
             ext.finalize()
             correction_map["HLT"] = ext.make_evaluator()
         ## btag weight
         elif SF == "BTV":
             if os.path.exists(
-                f"src/BTVNanoCommissioning/jsonpog-integration/POG/BTV/{campaign}"
+        f"src/BTVNanoCommissioning/jsonpog-integration/POG/BTV/{campaign}"
             ):
                 correction_map["btag"] = correctionlib.CorrectionSet.from_file(
                     f"src/BTVNanoCommissioning/jsonpog-integration/POG/BTV/{campaign}/btagging.json.gz"
@@ -225,6 +234,7 @@ def load_SF(campaign, config, syst=False):
     return correction_map
 
 
+
 def load_lumi(path):
     _lumi_path = "BTVNanoCommissioning.data.lumiMasks"
     with importlib.resources.path(_lumi_path, path) as filename:
@@ -353,7 +363,7 @@ def add_jec_variables(jets, event_rho):
         jets["pt_gen"] = ak.zeros_like(jets.pt)
     jets["event_rho"] = ak.broadcast_arrays(event_rho, jets.pt)[0]
     return jets
-
+import matplotlib.pyplot as plt
 
 ## JERC
 def JME_shifts(shifts, correct_map, events, campaign, isRealData, systematic=False):
@@ -376,110 +386,130 @@ def JME_shifts(shifts, correct_map, events, campaign, isRealData, systematic=Fal
         jecname = "data" + jecname
     else:
         jecname = "mc"
-    jets = correct_map["JME"]["jet_factory"][jecname].build(
-        add_jec_variables(events.Jet, events.fixedGridRhoFastjetAll),
-        lazy_cache=events.caches[0],
-    )
-    met = correct_map["JME"]["met_factory"].build(events.MET, jets, {})
-    ## HEM 18 issue
-    if isRealData and "2018" in campaign:
-        _runid = events.run >= 319077
-        j_mask = _runid\
-            & (jets.phi > -1.57)\
-            & (jets.phi < -0.87)\
-            & (jets.eta > -3.0)\
-            & (jets.eta < -1.3)
-        
-        '''
-        j_high_eta_mask = ak.where(
-            _runid
-            & (jets.phi > -1.57)
-            & (jets.phi < -0.87)
-            & (jets.eta > -3.0)
-            & (jets.eta < -2.5),
-            0.65,
-            1,
-        )'''
-        #jets = jets[~j_mask]
-        #for var in ["mass", "pt"]:
-        #    jets[var] = j_mask * j_high_eta_mask * jets[var]
-    shifts += [({"Jet": jets, "MET": met}, None)]
+        #jets=events.Jet[jetveto(events.Jet,correct_map["jetveto"])!=1]
+    jets=events.Jet
+    for jer_scale in [1.]:#[0.1,0.5,1.0,1.5,3]:
+        for jes_scale in [1.]:#[0.1,0.5,1.0,1.5,3]:
+            jets = correct_map["JME"]["jet_factory"][jecname].build(
+                add_jec_variables(jets, events.fixedGridRhoFastjetAll),
+                lazy_cache=events.caches[0],
+                jer_scale=jer_scale,jes_scale=jes_scale
+            )
 
-    ## systematics
-    if not isRealData:
-        if systematic is not False:
-            if systematic == "split":
-                for jes in met.fields:
-                    if "JES" not in jes or "Total" in jes:
-                        continue
+            # print("JETpt:",jets.pt,"\njets scale up, scale by ",scales," :",jets.JES_Total.up.pt)
+            met = correct_map["JME"]["met_factory"].build(events.MET, jets, {})
+            ## HEM 18 issue
+            if "2018" in campaign:
+                
+                if isRealData:
+                    _runid = events.run >= 319077
+                    j_mask = _runid\
+                        & (jets.phi > -1.57)\
+                        & (jets.phi < -0.87)\
+                        & (jets.eta > -3.0)\
+                        & (jets.eta < -1.3)
+                    
+                    
+                    jets = jets[~j_mask]
+                '''    
+                else:
+                    _runid = events.event %15 == 0
+                    j_mask = _runid\
+                        & (jets.phi > -1.57)\
+                        & (jets.phi < -0.87)\
+                        & (jets.eta > -3.0)\
+                        & (jets.eta < -1.3)
+                    
+                    
+                    jets = jets[~j_mask]
+                '''
 
+            
+            if jer_scale==1. and jes_scale==1.:
+                shifts += [({"Jet": jets, "MET": met}, None)]
+
+
+            ## systematics
+            if not isRealData:
+                if systematic is not False:
+                    if systematic == "split":
+                        for jes in met.fields:
+                            if "JES" not in jes or "Total" in jes:
+                                continue
+                            
+                            shifts += [
+                                (
+                                    {
+                                        "Jet": jets[jes]["up"],
+                                        "MET": met[jes]["up"],
+                                    },
+                                    f"{jes}Up",
+                                ),
+                                (
+                                    {
+                                        "Jet": jets[jes]["down"],
+                                        "MET": met[jes]["down"],
+
+                                    },
+                                    f"{jes}Down",
+                                ),
+                            ]
+
+                    else:
+                        #if jes_scale==1.:
+                        shifts += [
+                            (
+                                {
+                                    "Jet": jets.JES_Total.up,
+                                    "MET": met.JES_Total.up,
+                                },
+                                f"JESUp{jes_scale}",
+                            ),
+                            (
+                                {
+                                    "Jet": jets.JES_Total.down,
+                                    "MET": met.JES_Total.down,
+                                },
+                                f"JESDown{jes_scale}",
+                            ),
+                        ]
+                        #if jer_scale!=1.:
                     shifts += [
+                            
+                            (
+                            {
+                                "Jet": jets,
+                                "MET": met.MET_UnclusteredEnergy.up,
+                            },
+                            f"UESUp",
+                            ),
                         (
                             {
-                                "Jet": jets[jes]["up"],
-                                "MET": met[jes]["up"],
+                            "Jet": jets,
+                                "MET": met.MET_UnclusteredEnergy.down,
                             },
-                            f"{jes}Up",
+                            f"UESDown",
+                            ),
+
+                        (
+                            {
+                                "Jet": jets.JER.up,
+                                "MET": met.JER.up,                                
+                            },
+                            f"JERUp{jer_scale}",
                         ),
                         (
                             {
-                                "Jet": jets[jes]["down"],
-                                "MET": met[jes]["down"],
+                                "Jet": jets.JER.down,
+                                "MET": met.JER.down,
                             },
-                            f"{jes}Down",
+                            f"JERDown{jer_scale}",
                         ),
                     ]
-
-            else:
-                shifts += [
-                    (
-                        {
-                            "Jet": jets.JES_Total.up,
-                            "MET": met.JES_Total.up,
-                        },
-                        "JESUp",
-                    ),
-                    (
-                        {
-                            "Jet": jets.JES_Total.down,
-                            "MET": met.JES_Total.down,
-                        },
-                        "JESDown",
-                    ),
-                ]
-            shifts += [
-                (
-                    {
-                        "Jet": jets,
-                        "MET": met.MET_UnclusteredEnergy.up,
-                    },
-                    "UESUp",
-                ),
-                (
-                    {
-                        "Jet": jets,
-                        "MET": met.MET_UnclusteredEnergy.down,
-                    },
-                    "UESDown",
-                ),
-                (
-                    {
-                        "Jet": jets.JER.up,
-                        "MET": met.JER.up,
-                    },
-                    "JERUp",
-                ),
-                (
-                    {
-                        "Jet": jets.JER.down,
-                        "MET": met.JER.down,
-                    },
-                    "JERDown",
-                ),
-            ]
     return shifts
 
-
+def jetveto(jet,vetomap):
+    return vetomap[list(vetomap.keys())[0]].evaluate('jetvetomap',jet.eta,jet.phi)
 ## Muon Rochester correction
 def Roccor_shifts(shifts, correct_map, events, isRealData, systematic=False):
     mu = events.Muon
@@ -693,14 +723,26 @@ def btagSFs(jet, correct_map, weights, SFtype, syst=False):
 
 
 ### HLT SFs
-def HLTSFs(ele, mu, correct_map, weights, syst=True):
-    sf = correct_map["HLT"]['base/pt_mu_value'](np.minimum(mu.pt,200))*correct_map["HLT"]['base/pt_e_value'](np.minimum(ele.pt,200))
-    if syst:
+def HLTSFs(ele, mu, HLT, correct_map, weights, campaign, syst=True):
+
+    #sf_emu = correct_map["HLT"]['base/pt_mu_value'](np.minimum(mu.pt,200))*correct_map["HLT"]['base/pt_e_value'](np.minimum(ele.pt,200))
+    
+    sf =  correct_map["HLT"]["h2D_SF_emu_lepABpt_FullError"](np.clip(ele.pt,15,500),np.clip(mu.pt,15,500))
+    #sf_e = correct_map["HLT"]["EGamma_SF2D"](ele.eta,np.minimum(ele.pt,200))
+    #sf_mu = correct_map["HLT"][f'{correct_map["HLT_cfg"]}_eta_pt'](mu.eta,np.minimum(mu.pt,200))
+    #sf = #ak.where(((HLT>>0 & 1)==1)|((HLT>>0 & 1)==1),sf_emu,ak.where((HLT>>2 &1)==1,sf_mu,sf_e))
+    if syst:    
+        sf_err_emu_up=sf+correct_map["HLT"]["h2D_SF_emu_lepABpt_FullError_error"](np.clip(ele.pt,15,500),np.clip(mu.pt,15,500))
+        sf_err_emu_dn=sf-correct_map["HLT"]["h2D_SF_emu_lepABpt_FullError_error"](np.clip(ele.pt,15,500),np.clip(mu.pt,15,500))
+        # sf_err_e = correct_map["HLT"]["EGamma_SF2D_error"](ele.eta,ele.pt)
+        # sf_err_mu = np.sqrt(correct_map["HLT"][f'{correct_map["HLT_cfg"]}_eta_pt_stat'](mu.eta,np.minimum(mu.pt,200))**2+correct_map["HLT"][f'{correct_map["HLT_cfg"]}_eta_pt_syst'](mu.eta,np.minimum(mu.pt,200))**2)
+        # sf_err_up =  ak.where(((HLT>>0 & 1)==1)|((HLT>>0 & 1)==1),sf_err_emu_up,ak.where((HLT>>2 &1)==1,sf_mu+sf_err_e,sf_mu+sf_err_mu))
+        # sf_err_dn =  ak.where(((HLT>>0 & 1)==1)|((HLT>>0 & 1)==1),sf_err_emu_dn,ak.where((HLT>>2 &1)==1,sf_mu-sf_err_e,sf_mu-sf_err_mu))
         return weights.add(
             "HLT",
             sf,
-            (correct_map["HLT"]['base/pt_mu_value'](np.minimum(mu.pt,200))+correct_map["HLT"]['base/pt_mu_error'](np.minimum(mu.pt,200)))*(correct_map["HLT"]['base/pt_e_value'](np.minimum(ele.pt,200))+correct_map["HLT"]['base/pt_e_error'](np.minimum(ele.pt,200))),
-           (correct_map["HLT"]['base/pt_mu_value'](np.minimum(mu.pt,200))-correct_map["HLT"]['base/pt_mu_error'](np.minimum(mu.pt,200)))*(correct_map["HLT"]['base/pt_e_value'](np.minimum(ele.pt,200))-correct_map["HLT"]['base/pt_e_error'](np.minimum(ele.pt,200))),
+            sf_err_emu_up,
+            sf_err_emu_dn
         )
     else:
         return weights.add("HLT", sf)
@@ -945,6 +987,7 @@ def muSFs(mu, correct_map, weights, syst=False, isHLT=False):
                     sfs = np.where(
                         mask & ~masknone,
                         correct_map["MUO"][correct_map["MUO_cfg"][sf]].evaluate(
+                            #mu_eta, mu_pt, "nominal"
                             sf.split(" ")[1], mu_eta, mu_pt, "sf"
                         ),
                         sfs_low,
@@ -1033,8 +1076,8 @@ def muSFs(mu, correct_map, weights, syst=False, isHLT=False):
         
 
         if syst:
-            weights.add(sf.split(" ")[0], sfs_allmu, sfs_allmu_up, sfs_allmu_down)
 
+            weights.add(sf.split(" ")[0], sfs_allmu, sfs_allmu_up, sfs_allmu_down)
         else:
             weights.add(sf.split(" ")[0], sfs_allmu)
     return weights
@@ -1106,23 +1149,29 @@ def add_pdf_weight(weights, pdf_weights):
 
     # NNPDF31_nnlo_hessian_pdfas
     # https://lhapdfsets.web.cern.ch/current/NNPDF31_nnlo_hessian_pdfas/NNPDF31_nnlo_hessian_pdfas.info
-    if pdf_weights is not None and "306000 - 306102" in pdf_weights.__doc__:
+
+    if pdf_weights is not None and len(pdf_weights[0])>0:# and ("306000 - 306102" in pdf_weights.__doc__ or "325500 - 325600" in pdf_weights.__doc__):
         # Hessian PDF weights
         # Eq. 21 of https://arxiv.org/pdf/1510.03865v1.pdf
-        arg = pdf_weights[:, 1:-2] - np.ones((len(weights.weight()), 100))
+
+
+        arg = pdf_weights[:, 1:101] - np.ones((len(weights.weight()), 100))
         summed = ak.sum(np.square(arg), axis=1)
         pdf_unc = np.sqrt((1.0 / 99.0) * summed)
+
         weights.add("PDF_weight", nom, pdf_unc + nom)
 
         # alpha_S weights
         # Eq. 27 of same ref
-        as_unc = 0.5 * (pdf_weights[:, 102] - pdf_weights[:, 101])
-        weights.add("aS_weight", nom, as_unc + nom)
+        if len(pdf_weights[0])>101:
+            as_unc = 0.5 * (pdf_weights[:, 102] - pdf_weights[:, 101])
+            weights.add("aS_weight", nom, as_unc + nom)
 
-        # PDF + alpha_S weights
-        # Eq. 28 of same ref
-        pdfas_unc = np.sqrt(np.square(pdf_unc) + np.square(as_unc))
-        weights.add("PDFaS_weight", nom, pdfas_unc + nom)
+            # PDF + alpha_S weights
+            # Eq. 28 of same ref
+        
+            pdfas_unc = np.sqrt(np.square(pdf_unc) + np.square(as_unc))
+            weights.add("PDFaS_weight", nom, pdfas_unc + nom)
         # elif pdf_weights is not None and len(pdf_weights[0])>0:
         # print(np.shape(ak.to_numpy(pdf_weights)))
         # arg = pdf_weights[:,1:] - np.ones((len(weights.weight()), 100))
@@ -1200,8 +1249,8 @@ def add_scalevar_3pt(weights, lhe_weights,syst=True):
         if len(lhe_weights) > 0:
             if len(lhe_weights[0]) == 9:
                 nom = lhe_weights[:,4]
-                weights.add("scalevar_muR",nom,lhe_weights[:,1],lhe_weights[:,7])
-                weights.add("scalevar_muF",nom,lhe_weights[:,3],lhe_weights[:,5])
+                weights.add("scalevar_muR",nom,lhe_weights[:,1]/nom,lhe_weights[:,7]/nom)
+                weights.add("scalevar_muF",nom,lhe_weights[:,3]/nom,lhe_weights[:,5]/nom)
                 weights.add("scalevar_muR_muF",nom,lhe_weights[:,0],lhe_weights[:,8])
             elif len(lhe_weights[0]) > 1:
                 print("Scale variation vector has length ", len(lhe_weights[0]))

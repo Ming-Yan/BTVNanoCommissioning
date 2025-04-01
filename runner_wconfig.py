@@ -76,6 +76,7 @@ if __name__ == "__main__":
         config = Configurator(args.cfg, overwrite_output_dir=args.overwrite_file)
     else:
         raise sys.exit("Please provide a .py configuration file")
+
     if args.test:
         config.run_options["executor"] = "iterative"
         config.fileset = {f: [config.fileset[f][0]] for f in config.fileset}
@@ -148,7 +149,7 @@ if __name__ == "__main__":
         condor_extra = [
             f"cd {os.getcwd()}",
             f'source {os.environ["HOME"]}/.bashrc',
-            f"source {os.getcwd()}/CondaSetup.sh",
+            #f"source {os.getcwd()}/CondaSetup.sh",
             f'conda activate {os.environ["CONDA_PREFIX"]}',
         ]
 
@@ -244,6 +245,7 @@ if __name__ == "__main__":
             if "naf_lite" in config.run_options["executor"]:
                 config.run_options["mem_per_worker"] = 2
                 config.run_options["walltime"] = "03:00:00"
+            else:config.run_options["mem_per_worker"] = 6
             htex_config = Config(
                 executors=[
                     HighThroughputExecutor(
@@ -254,7 +256,7 @@ if __name__ == "__main__":
                         provider=CondorProvider(
                             nodes_per_block=1,
                             cores_per_slot=config.run_options["workers"],
-                            mem_per_slot=config.run_options["mem_per_worker"],
+                            mem_per_slot=float(config.run_options["mem_per_worker"]),
                             init_blocks=config.run_options["scaleout"],
                             max_blocks=(config.run_options["scaleout"]) + 2,
                             worker_init="\n".join(env_extra + condor_extra),
@@ -310,6 +312,7 @@ if __name__ == "__main__":
             raise NotImplementedError
 
         dfk = parsl.load(htex_config)
+
         if not config.run_options["splitjobs"]:
             executor_args_condor = {
                 "skipbadfiles": config.run_options["skipbadfiles"],
@@ -327,6 +330,7 @@ if __name__ == "__main__":
                 "config": None,
                 "compression": config.run_options["compression"],
             }
+
         if config.run_options["index"] is not None:
             findex = int(config.run_options["index"].split(",")[1])
             for sindex, sample in enumerate(config.fileset.keys()):
@@ -346,8 +350,7 @@ if __name__ == "__main__":
                     splitted = {}
                     maxs = mins + config.run_options["sample_size"]
                     splitted[sample] = config.fileset[sample][mins:maxs]
-                    mins = maxs
-                    findex = findex + 1
+                    print(sample,mins,maxs)
 
                     if len(
                         config.run_options["index"].split(",")
@@ -366,6 +369,8 @@ if __name__ == "__main__":
                         output,
                         config.outfile.replace(".coffea", f"_{sindex}_{findex}.coffea"),
                     )
+                    mins = maxs
+                    findex = findex + 1
         else:
             output = processor.run_uproot_job(
                 config.fileset,
@@ -432,9 +437,10 @@ if __name__ == "__main__":
         elif "condor" in config.run_options["executor"]:
             cluster = HTCondorCluster(
                 cores=config.run_options["workers"],
-                disk="4GB",
-                memory=config.run_options["mem_per_worker"],
-                env_extra=env_extra,
+                disk="2GB",
+                memory="6GB",#config.run_options["mem_per_worker"],
+                job_script_prologue=env_extra,
+                silence_logs=False
             )
 
         if config.run_options["executor"] == "dask/casa":
@@ -448,26 +454,72 @@ if __name__ == "__main__":
             client = Client(cluster)
             print("Waiting for at least one worker...")
             client.wait_for_workers(1)
+            
+        print(config.run_options["index"])
         with performance_report(filename="dask-report.html"):
-            output = processor.run_uproot_job(
-                config.fileset,
-                treename="Events",
-                processor_instance=config.processor_instance,
-                executor=processor.dask_executor,
-                executor_args={
-                    "client": client,
-                    "skipbadfiles": config.run_options["skipbadfiles"],
-                    "schema": processor.NanoAODSchema,
-                    "retries": config.run_options["retries"],
-                    "compression": config.run_options["compression"],
-                },
-                chunksize=config.run_options["chunk"],
-                maxchunks=config.run_options["max"],
-            )
-
-            save(output, config.outfile)
-
-    # print(output) better to print this in a file:
+            if config.run_options["index"] is not None:
+                findex = int(config.run_options["index"].split(",")[1])
+                for sindex, sample in enumerate(config.fileset.keys()):
+                    if sindex < int(config.run_options["index"].split(",")[0]):
+                        continue
+                    if len(config.run_options["index"].split(",")) == 4 and sindex > int(
+                        config.run_options["index"].split(",")[2]
+                    ):
+                        break
+    
+                    if int(config.run_options["index"].split(",")[1]) == findex:
+                        mins = findex * config.run_options["sample_size"]
+                    else:
+                        mins = 0
+                        findex = 0
+                    while mins < len(config.fileset[sample]):
+                        splitted = {}
+                        maxs = mins + config.run_options["sample_size"]
+                        splitted[sample] = config.fileset[sample][mins:maxs]
+                        mins = maxs
+                        findex = findex + 1
+    
+                        if len(
+                            config.run_options["index"].split(",")
+                        ) == 4 and findex > int(config.run_options["index"].split(",")[3]):
+                            break
+                        print(sample,len(splitted[sample]),findex,sindex)
+                        output = processor.run_uproot_job(
+                            splitted,
+                            treename="Events",
+                            processor_instance=config.processor_instance,
+                            executor=processor.dask_executor,
+                            executor_args={
+                                "client": client,
+                                "skipbadfiles": config.run_options["skipbadfiles"],
+                                "schema": processor.NanoAODSchema,
+                                "retries": config.run_options["retries"],
+                                "compression": config.run_options["compression"],
+                            },
+                            chunksize=config.run_options["chunk"],
+                            maxchunks=config.run_options["max"],
+                        )
+    
+                        save(output,config.outfile.replace(".coffea", f"_{sindex}_{findex}.coffea"),)
+            else:
+                output = processor.run_uproot_job(
+                            config.fileset,
+                            treename="Events",
+                            processor_instance=config.processor_instance,
+                            executor=processor.dask_executor,
+                            executor_args={
+                                "client": client,
+                                "skipbadfiles": config.run_options["skipbadfiles"],
+                                "schema": processor.NanoAODSchema,
+                                "retries": config.run_options["retries"],
+                                "compression": config.run_options["compression"],
+                            },
+                            chunksize=config.run_options["chunk"],
+                            maxchunks=config.run_options["max"],
+                        )
+    
+                save(output, config.outfile)
+    
     with open(f"{config.outfile}.print.txt", "w") as f:
         print(output, file=f)
 
