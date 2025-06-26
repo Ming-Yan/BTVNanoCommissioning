@@ -94,7 +94,7 @@ jobs:
         chmod 400 $HOME/.globus/userkey.pem
         openssl rand -out $HOME/.rnd  -hex 256
         # printf "${{secrets.GRID_PASSWORD}}" | voms-proxy-init --voms cms  --debug --pwstdin   
-        echo ${secrets.GRID_PASSWORD} | voms-proxy-init -voms cms  --pwstdin 
+        echo "${{secrets.GRID_PASSWORD}}" | voms-proxy-init -voms cms  --pwstdin 
         chmod 755 /usr/share/miniconda/envs/btv_coffea/etc/grid-security/certificates
         
    
