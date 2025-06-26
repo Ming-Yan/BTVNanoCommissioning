@@ -93,7 +93,7 @@ jobs:
         # base64 -i $HOME/.globus/usercert.pem
         chmod 400 $HOME/.globus/userkey.pem
         openssl rand -out $HOME/.rnd  -hex 256
-        printf "${{secrets.GRID_PASSWORD}}" | voms-proxy-init --voms cms  --debug --pwstdin -certdir $X509_CERT_DIR  -vomses $X509_VOMSES
+        printf "${{secrets.GRID_PASSWORD}}" | voms-proxy-init --voms cms  --debug --pwstdin -certdir $X509_CERT_DIR  
         chmod 755 /usr/share/miniconda/envs/btv_coffea/etc/grid-security/certificates
         
    
