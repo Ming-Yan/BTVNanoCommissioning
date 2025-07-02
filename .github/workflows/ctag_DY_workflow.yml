@@ -99,8 +99,8 @@ jobs:
         openssl rand -out $HOME/.rnd  -hex 256
         ls -lrt $HOME/.globus/
         ls -lrt /cvmfs/grid.cern.ch/etc/grid-security/
-        ls -l $X509_CERT_DIR | grep r0
-        printf "${{secrets.GRID_PASSWORD}}" | voms-proxy-init  --debug --voms cms  --pwstdin --certdir $X509_CERT_DIR  --vomses $X509_VOMSES
+        openssl crl -in /cvmfs/grid.cern.ch/etc/grid-security/ffc3d59b.r0 -noout -nextupdate
+        printf "${{secrets.GRID_PASSWORD}}" | voms-proxy-init  --debug --voms cms  --pwstdin --certdir $X509_CERT_DIR  --vomses $X509_VOMSES 
         
         # printf "${{secrets.GRID_PASSWORD}}" | voms-proxy-init --voms cms  --debug --pwstdin   
          # printf "${GRID_PASSWORD}" | voms-proxy-init --voms cms  --pwstdin  --debug
