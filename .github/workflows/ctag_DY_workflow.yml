@@ -99,8 +99,7 @@ jobs:
         openssl rand -out $HOME/.rnd  -hex 256
         ls -lrt $HOME/.globus/
         ls -lrt /cvmfs/grid.cern.ch/etc/grid-security/
-        printf "${{secrets.GRID_PASSWORD}}" | voms-proxy-init  --debug --voms cms  --pwstdin
-        # --key $X509_DEFAULT_USER_KEY --cert $X509_DEFAULT_USER_CERT --certdir $X509_CERT_DIR  --vomses $X509_VOMSES
+        printf "${{secrets.GRID_PASSWORD}}" | voms-proxy-init  --debug --voms cms  --pwstdin --key $X509_DEFAULT_USER_KEY --cert $X509_DEFAULT_USER_CERT --certdir $X509_CERT_DIR  --vomses $X509_VOMSES
         # printf "${{secrets.GRID_PASSWORD}}" | voms-proxy-init --voms cms  --debug --pwstdin   
          # printf "${GRID_PASSWORD}" | voms-proxy-init --voms cms  --pwstdin  --debug
         chmod 755 /usr/share/miniconda/envs/btv_coffea/etc/grid-security/certificates
