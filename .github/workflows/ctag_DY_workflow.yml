@@ -82,9 +82,10 @@ jobs:
         GRID_PASSWORD: ${{ secrets.GRID_PASSWORD }}
         # Read automatically by voms-proxy-init
         # X509_USER_PROXY/afs/desy.de/user/m/milee/k5-ca-proxy.pem
-        X509_VOMS_DIR: /cvmfs/grid.cern.ch/etc/grid-security/vomsdir/
-        X509_VOMSES: /cvmfs/grid.cern.ch/etc/grid-security/vomses/
-        X509_CERT_DIR: /cvmfs/grid.cern.ch/etc/grid-security/certificates/
+        X509_VOMS_DIR: /usr/share/miniconda/envs/btv_coffea/etc/grid-security/vomsdir/
+        X509_VOMSES: /usr/share/miniconda/envs/btv_coffea/etc/grid-security/vomses/
+        X509_CERT_DIR: /usr/share/miniconda/envs/btv_coffea/etc/grid-security/certificates/
+        
         X509_DEFAULT_USER_CERT: $HOME/.globus/usercert.pem
         X509_DEFAULT_USER_KEY: $HOME/.globus/userkey.pem
 
