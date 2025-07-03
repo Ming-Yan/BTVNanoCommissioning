@@ -82,8 +82,8 @@ jobs:
         GRID_PASSWORD: ${{ secrets.GRID_PASSWORD }}
         # Read automatically by voms-proxy-init
         # X509_USER_PROXY/afs/desy.de/user/m/milee/k5-ca-proxy.pem
-        X509_VOMS_DIR: /usr/share/miniconda/envs/btv_coffea/etc/grid-security/vomsdir/
-        X509_VOMSES: /usr/share/miniconda/envs/btv_coffea/etc/grid-security/vomses/
+        X509_VOMS_DIR: /cvmfs/grid.cern.ch/etc/grid-security/vomsdir/
+        X509_VOMSES: /cvmfs/grid.cern.ch/etc/grid-security/vomses/
         X509_CERT_DIR: /usr/share/miniconda/envs/btv_coffea/etc/grid-security/certificates/
         
         X509_DEFAULT_USER_CERT: $HOME/.globus/usercert.pem
@@ -99,7 +99,10 @@ jobs:
         chmod 400 $HOME/.globus/userkey.pem
         openssl rand -out $HOME/.rnd  -hex 256
         ls -lrt $HOME/.globus/
-        ls -lrt /cvmfs/grid.cern.ch/etc/grid-security/
+        
+        ls -l /cvmfs/grid.cern.ch/etc/grid-security/certificates
+        ls -l /usr/share/miniconda/envs/btv_coffea/etc/grid-security/certificates/
+        fetch-crl --verbose
         # openssl crl -in /cvmfs/grid.cern.ch/etc/grid-security/ffc3d59b.r0 -noout -nextupdate
         printf "${{secrets.GRID_PASSWORD}}" | voms-proxy-init  --debug --voms cms  --pwstdin --key  $HOME/.globus/userkey.pem --cert $HOME/.globus/usercert.pem  --certdir $X509_CERT_DIR  --vomses $X509_VOMSES 
         
